@@ -3,8 +3,9 @@ Mobile app for empowering individuals and businesses to achieve a climate surplu
 
 # clima_shield
 
-A new Flutter project.
-
+A new Flutter project. Link to research that will update as I move along. This is everything I have researched to produce te app thus far, including legal implications and the entire SDLC: 
+Feel free to commentate in the file!!!
+https://docs.google.com/document/d/1Bsqx4cjmXpvdEfrPsIFvL7L0WR3IsXAoFIzQYx0KPno/edit?usp=sharing
 ## Getting Started
 
 This project is a starting point for a Flutter application.
