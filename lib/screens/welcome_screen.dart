@@ -1,4 +1,5 @@
 import 'package:clima_shield/screens/business_signup_screen.dart';
+import 'package:clima_shield/screens/home_shell.dart';
 import 'package:clima_shield/screens/login_screen.dart';
 import 'package:clima_shield/screens/personal_signup_screen.dart';
 import 'package:flutter/material.dart';
@@ -84,6 +85,21 @@ class WelcomeScreen extends StatelessWidget {
                         fontSize: 14,
                         fontFamily: 'Be Vietnam Pro',
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const HomeShell()),
+                      );
+                    },
+                    child: const Text(
+                      'Continue without an account (local mode)',
+                      style: TextStyle(
+                        color: Color(0xFF598C6D),
+                        fontSize: 13,
+                        fontFamily: 'Be Vietnam Pro',
                       ),
                     ),
                   ),

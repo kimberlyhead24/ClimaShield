@@ -1,30 +1,64 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:clima_shield/data/carbon_math.dart';
+import 'package:clima_shield/data/sample_data.dart';
+import 'package:clima_shield/models/footprint.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:clima_shield/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('carbon math', () {
+    test('zero inputs produce only the diet baseline', () {
+      const inputs = CarbonCalculatorInputs();
+      final fp = computeFootprint(inputs);
+      expect(fp.transportKg, 0);
+      expect(fp.homeEnergyKg, 0);
+      expect(fp.goodsKg, 0);
+      expect(fp.dietKg, CarbonFactors.dietAnnualKg['average']);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('vegan diet beats meat-heavy diet', () {
+      const vegan = CarbonCalculatorInputs(dietType: 'vegan');
+      const meaty = CarbonCalculatorInputs(dietType: 'meat_heavy');
+      expect(
+        computeFootprint(vegan).dietKg,
+        lessThan(computeFootprint(meaty).dietKg),
+      );
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('car miles increase transport footprint', () {
+      const a = CarbonCalculatorInputs(carMilesPerWeek: 0);
+      const b = CarbonCalculatorInputs(carMilesPerWeek: 200, carMpg: 25);
+      expect(computeFootprint(b).transportKg,
+          greaterThan(computeFootprint(a).transportKg));
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('household size divides home energy', () {
+      const solo = CarbonCalculatorInputs(
+          electricityKwhPerMonth: 800, householdSize: 1);
+      const family = CarbonCalculatorInputs(
+          electricityKwhPerMonth: 800, householdSize: 4);
+      expect(computeFootprint(family).homeEnergyKg,
+          closeTo(computeFootprint(solo).homeEnergyKg / 4, 0.1));
+    });
+  });
+
+  group('sample data', () {
+    test('every action has a non-empty id and title', () {
+      for (final a in SampleData.actions) {
+        expect(a.id.isNotEmpty, isTrue);
+        expect(a.title.isNotEmpty, isTrue);
+      }
+    });
+
+    test('meals are tier-tagged with known tiers', () {
+      const tiers = {'best', 'good', 'fair', 'high'};
+      for (final m in SampleData.meals) {
+        expect(tiers.contains(m.tier), isTrue, reason: '${m.name} has tier ${m.tier}');
+      }
+    });
+
+    test('solar components are ordered', () {
+      final orders = SampleData.solarComponents.map((c) => c.phaseOrder).toSet();
+      expect(orders.length, SampleData.solarComponents.length,
+          reason: 'phaseOrder values should be unique');
+    });
   });
 }
