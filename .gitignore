@@ -1,3 +1,5 @@
+# Configuration
+lib/json/firebase-key.json
 # Miscellaneous
 *.class
 *.log
