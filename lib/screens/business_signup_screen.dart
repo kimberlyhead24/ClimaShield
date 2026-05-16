@@ -1,10 +1,8 @@
-import 'dart:developer'; // Import the developer library for logging
-import 'package:clima_shield/screens/login_screen.dart'; // Import the login screen
+import 'dart:developer';
+import 'package:clima_shield/firebase_auth_service.dart';
+import 'package:clima_shield/screens/home_shell.dart';
+import 'package:clima_shield/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-// CORRECTED IMPORT PATH:
-// We are telling Flutter to look for the file in the main 'lib' folder
-// by using the package name 'clima_shield'.
-import 'package:clima_shield/firebase_auth_service.dart'; 
 
 class BusinessSignUpScreen extends StatefulWidget {
   const BusinessSignUpScreen({super.key});
@@ -46,14 +44,18 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
     );
 
     if (result != null) {
-      // Navigate to home screen on success
       log("Sign up successful! User ID: ${result.uid}", name: 'BusinessSignUpScreen');
-      // You would typically navigate to another screen here:
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+        (_) => false,
+      );
     } else {
-      // Show an error message
       log("Sign up failed.", name: 'BusinessSignUpScreen');
-      // You would show a dialog or a snackbar here
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign up failed. Try a stronger password or different email.')),
+      );
     }
   }
 

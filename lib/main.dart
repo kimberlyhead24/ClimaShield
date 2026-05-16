@@ -1,41 +1,80 @@
-// Import necessary packages
+import 'dart:developer';
+
 import 'package:clima_shield/firebase_options.dart';
-import 'package:clima_shield/screens/welcome_screen.dart'; // Import your new welcome screen
+import 'package:clima_shield/screens/home_shell.dart';
+import 'package:clima_shield/screens/welcome_screen.dart';
+import 'package:clima_shield/theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-// The main entry point of the app
+/// Entry point.
+///
+/// We try to initialise Firebase, but if the platform isn't configured (e.g.
+/// running on a fresh dev box without `flutterfire configure`) we still launch
+/// the app in local-only mode rather than crashing. The repository layer
+/// transparently falls back to in-memory sample data.
 void main() async {
-  // This is required to ensure that Flutter's engine is ready before you run any code that depends on it, like Firebase.
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // This line connects your app to your Firebase project using the configuration file.
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  // This runs your application.
-  runApp(const MyApp());
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    log('Firebase init failed — running in local mode: $e', name: 'main');
+  }
+  runApp(const ClimaShieldApp());
 }
 
-// This is the root widget of your application.
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ClimaShieldApp extends StatelessWidget {
+  const ClimaShieldApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ClimaShield', // This is the title of your app
+      title: 'ClimaShield',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // We can define a consistent theme for the app here
         primarySwatch: Colors.green,
-        fontFamily: 'Be Vietnam Pro', // Sets the default font
+        scaffoldBackgroundColor: ClimaColors.bg,
+        fontFamily: 'Be Vietnam Pro',
+        colorScheme: ColorScheme.fromSeed(seedColor: ClimaColors.accent),
+        useMaterial3: true,
       ),
-      // This removes the little "Debug" banner from the top right corner
-      debugShowCheckedModeBanner: false, 
-      
-      // This sets the WelcomeScreen as the very first screen the user will see.
-      home: const WelcomeScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+/// Decides between welcome flow and the main app based on auth state. Uses a
+/// stream so sign-in/sign-out updates the tree immediately. Falls back to
+/// [WelcomeScreen] when Firebase isn't available.
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    Stream<User?>? stream;
+    try {
+      stream = FirebaseAuth.instance.authStateChanges();
+    } catch (_) {
+      stream = null;
+    }
+    if (stream == null) {
+      return const WelcomeScreen();
+    }
+    return StreamBuilder<User?>(
+      stream: stream,
+      builder: (ctx, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: ClimaColors.bg,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snap.data != null) return const HomeShell();
+        return const WelcomeScreen();
+      },
     );
   }
 }

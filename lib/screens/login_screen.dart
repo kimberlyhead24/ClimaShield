@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:clima_shield/firebase_auth_service.dart';
+import 'package:clima_shield/screens/home_shell.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,11 +30,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result != null) {
       log("Login successful! User ID: ${result.uid}", name: 'LoginScreen');
-      // TODO: Navigate to the main app screen (e.g., HomeScreen)
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+        (_) => false,
+      );
     } else {
       log("Login failed.", name: 'LoginScreen');
-      // TODO: Show an error dialog to the user
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login failed. Check your email & password.')),
+      );
     }
   }
 
