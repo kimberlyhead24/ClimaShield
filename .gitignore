@@ -13,7 +13,7 @@ lib/json/firebase-key.json
 .svn/
 .swiftpm/
 migrate_working_dir/
-
+.vs/
 # IntelliJ related
 *.iml
 *.ipr
