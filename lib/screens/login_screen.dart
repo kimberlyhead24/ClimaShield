@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 320,
               decoration: const BoxDecoration(
                 image: DecorationImage(
-                  image: NetworkImage("https://storage.googleapis.com/climateshield-app-assets/world.png"),
+                  image: AssetImage("assets/images/world.png"),
                   fit: BoxFit.cover,
                 ),
               ),

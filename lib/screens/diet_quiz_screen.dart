@@ -43,7 +43,7 @@ class _DietQuizScreenState extends State<DietQuizScreen> {
                 onPressed: () => _nextQuestion(option.dietGenre),
                 child: Text(option.text),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

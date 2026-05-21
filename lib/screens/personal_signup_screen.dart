@@ -74,7 +74,7 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
               decoration: const BoxDecoration(
                 image: DecorationImage(
                   // Using your final public URL
-                  image: NetworkImage("https://storage.googleapis.com/climateshield-app-assets/world.png"),
+                  image: AssetImage("assets/images/world.png"),
                   fit: BoxFit.cover,
                 ),
               ),

@@ -20,8 +20,8 @@ class WelcomeScreen extends StatelessWidget {
               height: 320,
               decoration: const BoxDecoration(
                 image: DecorationImage(
-                  // Using your final public URL
-                  image: NetworkImage("https://storage.googleapis.com/climateshield-app-assets/world.png"),
+                  // Using local image asset instead of network image for better performance and reliability
+                  image: AssetImage("assets/images/world.png"),
                   fit: BoxFit.cover,
                 ),
               ),

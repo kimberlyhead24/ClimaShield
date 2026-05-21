@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/recipe_model.dart';
 import '../data/meal_plan_data.dart'; // Import your sample data
 import 'recipe_detail_screen.dart'; // We will create this next
 

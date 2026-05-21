@@ -119,24 +119,31 @@ class ClimaRepository {
     }
   }
 
-  Future<void> saveCalculation(
-      CarbonCalculatorInputs inputs, CarbonFootprint footprint) async {
-    _localInputs = inputs;
-    _localFootprint = footprint;
-    if (!isRemoteAvailable) return;
-    try {
-      final batch = _db!.batch();
-      final inputsRef =
-          _db!.collection('users').doc(_uid).collection('meta').doc('inputs');
-      final fpRef =
-          _db!.collection('users').doc(_uid).collection('meta').doc('footprint');
-      batch.set(inputsRef, inputs.toMap());
-      batch.set(fpRef, footprint.toMap());
-      await batch.commit();
-    } catch (e) {
-      log('saveCalculation remote failed: $e', name: 'ClimaRepository');
-    }
+Future<void> saveCalculation(
+    CarbonCalculatorInputs inputs, CarbonFootprint footprint) async {
+  _localInputs = inputs;
+  _localFootprint = footprint;
+  log('saveCalculation: isRemoteAvailable=$isRemoteAvailable, uid=$_uid',
+      name: 'ClimaRepository');
+  if (!isRemoteAvailable) {
+    log('saveCalculation: skipping Firestore — not authenticated or db null',
+        name: 'ClimaRepository');
+    return;
   }
+  try {
+    final batch = _db!.batch();
+    final inputsRef =
+        _db!.collection('users').doc(_uid).collection('meta').doc('inputs');
+    final fpRef =
+        _db!.collection('users').doc(_uid).collection('meta').doc('footprint');
+    batch.set(inputsRef, inputs.toMap());
+    batch.set(fpRef, footprint.toMap());
+    await batch.commit();
+    log('saveCalculation: Firestore write succeeded', name: 'ClimaRepository');
+  } catch (e) {
+    log('saveCalculation remote failed: $e', name: 'ClimaRepository');
+  }
+}
 
   // ----- Diet -----
   Future<List<DietLogEntry>> dietLog({int? days}) async {

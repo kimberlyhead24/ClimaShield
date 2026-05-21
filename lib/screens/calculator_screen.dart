@@ -4,6 +4,8 @@ import '../data/carbon_math.dart';
 import '../data/repository.dart';
 import '../models/footprint.dart';
 import '../theme.dart';
+import 'dart:developer';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
@@ -83,6 +85,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
     final fp = computeFootprint(inputs);
     setState(() => _result = fp);
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    log('_calculate(): uid=$uid, isRemoteAvailable=${ClimaRepository.instance.isRemoteAvailable}', name: 'CalculatorScreen');
+        
     await ClimaRepository.instance.saveCalculation(inputs, fp);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
