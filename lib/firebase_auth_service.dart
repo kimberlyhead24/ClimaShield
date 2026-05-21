@@ -1,17 +1,19 @@
-import 'dart:developer'; 
+import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
 
   /// Signs up a user with email and password, then stores their data in Firestore.
   Future<User?> signUp({
     required String email,
     required String password,
     required String name,
-    required String userType, // 'personal' or 'business'
+    required String userType,
   }) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -57,7 +59,38 @@ class FirebaseAuthService {
     }
   }
 
-  /// Signs out the current user.
+/// Signs in a user with Google.
+Future<User?> signInWithGoogle() async {
+  try {
+    // Web-compatible Google Sign-In using signInWithPopup
+    final googleProvider = GoogleAuthProvider();
+    final UserCredential userCredential =
+        await _auth.signInWithPopup(googleProvider);
+    final User? user = userCredential.user;
+
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (!doc.exists) {
+        await _storeUserData(
+          uid: user.uid,
+          email: user.email ?? '',
+          name: user.displayName ?? 'Google User',
+          userType: 'personal',
+        );
+      }
+    }
+    return user;
+  } on FirebaseAuthException catch (e) {
+    log('Google sign-in FirebaseAuthException: ${e.message}',
+        name: 'FirebaseAuthService');
+    return null;
+  } catch (e) {
+    log('Google sign-in unexpected error: $e', name: 'FirebaseAuthService');
+    return null;
+  }
+}
+
+  /// Signs out the current user (both Firebase and Google).
   Future<void> signOut() async {
     try {
       await _auth.signOut();
@@ -66,7 +99,7 @@ class FirebaseAuthService {
     }
   }
 
-  /// Stores user data in a 'users' collection in Firestore.
+  /// Stores user data in Firestore.
   Future<void> _storeUserData({
     required String uid,
     required String email,
@@ -87,4 +120,3 @@ class FirebaseAuthService {
     }
   }
 }
-

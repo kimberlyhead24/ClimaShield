@@ -44,6 +44,25 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _signInWithGoogle() async {
+      final result = await _authService.signInWithGoogle();
+      if (result != null) {
+        log("Google login successful! User: ${result.email}", name: 'LoginScreen');
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeShell()),
+          (_) => false,
+        );
+    } else {
+      log("Google login failed or cancelled.", name: 'LoginScreen');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google sign-in failed. Please try again.')),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,7 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 24),
                   _buildButton(text: 'Log In', onPressed: _login, isPrimary: true),
                   const SizedBox(height: 16),
-                  _buildButton(text: 'Sign in with Google', onPressed: () {}, isPrimary: false),
+                  _buildButton(
+                    text: 'Sign in with Google', 
+                    onPressed: _signInWithGoogle, 
+                    isPrimary: false
+                    ),
                   const SizedBox(height: 24),
                   TextButton(
                     onPressed: () {

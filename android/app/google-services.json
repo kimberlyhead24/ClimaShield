@@ -12,7 +12,20 @@
           "package_name": "com.example.clima_shield"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "571502069670-edq7qqif30rnvk8m0dqq0fm3pj9a1034.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.clima_shield",
+            "certificate_hash": "ec992dd4003f3045c3edb3b698cddae1483a538d"
+          }
+        },
+        {
+          "client_id": "571502069670-140alep0napcacjobmhdimhd99uk2gdi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBFbwBiWWxrSlooQ0_H41sKzzuI8Xqv914"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "571502069670-140alep0napcacjobmhdimhd99uk2gdi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "571502069670-dnfo1u9bgjsmjks0ht5pb75e563v9ru9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.climaShield"
+              }
+            }
+          ]
         }
       }
     }

@@ -25,33 +25,43 @@ class MoreScreen extends StatelessWidget {
       children: [
         const Text('More', style: ClimaText.headline),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: ClimaColors.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(children: [
-            const CircleAvatar(
-              backgroundColor: ClimaColors.primary,
-              child: Icon(Icons.person, color: ClimaColors.ink),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(user?.email ?? 'Signed out (local mode)',
-                      style: ClimaText.title.copyWith(fontSize: 14)),
-                  Text(user == null
-                      ? 'Sign in to sync your progress to the cloud.'
-                      : 'Synced with Firebase',
-                      style: ClimaText.muted),
-                ],
-              ),
-            ),
-          ]),
+GestureDetector(
+  onTap: user == null
+      ? () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          )
+      : null,
+  child: Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: ClimaColors.surface,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(children: [
+      const CircleAvatar(
+        backgroundColor: ClimaColors.primary,
+        child: Icon(Icons.person, color: ClimaColors.ink),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(user?.email ?? 'Signed out (local mode)',
+                style: ClimaText.title.copyWith(fontSize: 14)),
+            Text(user == null
+                ? 'Sign in to sync your progress to the cloud.'
+                : 'Synced with Firebase',
+                style: ClimaText.muted),
+          ],
         ),
+      ),
+      if (user == null)
+        const Icon(Icons.chevron_right, color: ClimaColors.inkSoft),
+    ]),
+  ),
+),
         const SizedBox(height: 20),
         _tile(context, Icons.calculate_outlined, 'Carbon calculator',
             const CalculatorScreen()),
