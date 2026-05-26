@@ -14,10 +14,6 @@ import 'sample_data.dart';
 /// Thin data layer with two modes:
 /// - Firestore (when a user is signed in and Firebase initialized OK)
 /// - In-memory fallback seeded from [SampleData] for offline / dev runs
-///
-/// All UI talks to a single [ClimaRepository] instance via the static
-/// [ClimaRepository.instance] so screens stay simple. Reads always succeed -
-/// fallback data fills in when remote calls fail or auth is missing.
 class ClimaRepository {
   ClimaRepository._();
   static final ClimaRepository instance = ClimaRepository._();
@@ -41,7 +37,7 @@ class ClimaRepository {
   bool get isAuthenticated => _uid != null;
   bool get isRemoteAvailable => _db != null && isAuthenticated;
 
-  // --- In-memory caches used when offline / unauthenticated ---
+  // --- In-memory caches ---
   final List<CompletedAction> _localCompleted = [];
   final List<DietLogEntry> _localDietLog = [];
   CarbonCalculatorInputs? _localInputs;
@@ -69,11 +65,13 @@ class ClimaRepository {
     }
   }
 
+  // CHANGE: Added category and co2eKgPerYear to both local cache and Firestore write
   Future<void> markActionComplete(ClimateAction a) async {
     final entry = CompletedAction(
       actionId: a.id,
       completedAt: DateTime.now(),
       co2eKgSaved: a.co2eKgPerYear,
+      category: a.primaryCategory.name,
     );
     _localCompleted.insert(0, entry);
     if (!isRemoteAvailable) return;
@@ -82,18 +80,66 @@ class ClimaRepository {
           .collection('users')
           .doc(_uid)
           .collection('completedActions')
-          .add(entry.toMap());
+          .doc(a.id) // use action ID as doc ID so re-completing doesn't duplicate
+          .set({
+        'actionId': a.id,
+        'category': a.primaryCategory.name, // e.g. 'energy', 'transport', 'diet'
+        'co2eKgPerYear': a.co2eKgPerYear,
+        'co2eKgSaved': a.co2eKgPerYear,
+        'completedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       log('markActionComplete remote failed: $e', name: 'ClimaRepository');
     }
+  }
+
+  /// NEW: Returns total CO₂e saved per category, e.g. {'energy': 145.0, 'transport': 80.0}
+  /// Used by the dashboard Impact Areas section.
+  Future<Map<String, double>> co2eSavedByCategory() async {
+    final list = await completedActions();
+    final Map<String, double> totals = {};
+
+    if (isRemoteAvailable) {
+      // Use Firestore data which has category stored
+      try {
+        final snap = await _db!
+            .collection('users')
+            .doc(_uid)
+            .collection('completedActions')
+            .get();
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final category = (data['category'] as String?) ?? 'other';
+          final kg = (data['co2eKgPerYear'] as num?)?.toDouble() ?? 0.0;
+          totals[category] = (totals[category] ?? 0) + kg;
+        }
+        return totals;
+      } catch (e) {
+        log('co2eSavedByCategory remote failed: $e', name: 'ClimaRepository');
+      }
+    }
+
+    // Fallback: derive from local completed list + allActions lookup
+    final actionsMap = {for (final a in SampleData.actions) a.id: a};
+    for (final completed in list) {
+      final action = actionsMap[completed.actionId];
+      if (action == null) continue;
+      final key = action.primaryCategory.name;
+      totals[key] = (totals[key] ?? 0) + completed.co2eKgSaved;
+    }
+    return totals;
   }
 
   // ----- Footprint -----
   Future<CarbonCalculatorInputs?> loadInputs() async {
     if (!isRemoteAvailable) return _localInputs;
     try {
-      final doc =
-          await _db!.collection('users').doc(_uid).collection('meta').doc('inputs').get();
+      final doc = await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('meta')
+          .doc('inputs')
+          .get();
       if (!doc.exists) return _localInputs;
       return CarbonCalculatorInputs.fromMap(doc.data() ?? {});
     } catch (e) {
@@ -119,37 +165,43 @@ class ClimaRepository {
     }
   }
 
-Future<void> saveCalculation(
-    CarbonCalculatorInputs inputs, CarbonFootprint footprint) async {
-  _localInputs = inputs;
-  _localFootprint = footprint;
-  log('saveCalculation: isRemoteAvailable=$isRemoteAvailable, uid=$_uid',
-      name: 'ClimaRepository');
-  if (!isRemoteAvailable) {
-    log('saveCalculation: skipping Firestore — not authenticated or db null',
+  Future<void> saveCalculation(
+      CarbonCalculatorInputs inputs, CarbonFootprint footprint) async {
+    _localInputs = inputs;
+    _localFootprint = footprint;
+    log('saveCalculation: isRemoteAvailable=$isRemoteAvailable, uid=$_uid',
         name: 'ClimaRepository');
-    return;
+    if (!isRemoteAvailable) {
+      log('saveCalculation: skipping Firestore — not authenticated or db null',
+          name: 'ClimaRepository');
+      return;
+    }
+    try {
+      final batch = _db!.batch();
+      final inputsRef = _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('meta')
+          .doc('inputs');
+      final fpRef = _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('meta')
+          .doc('footprint');
+      batch.set(inputsRef, inputs.toMap());
+      batch.set(fpRef, footprint.toMap());
+      await batch.commit();
+      log('saveCalculation: Firestore write succeeded',
+          name: 'ClimaRepository');
+    } catch (e) {
+      log('saveCalculation remote failed: $e', name: 'ClimaRepository');
+    }
   }
-  try {
-    final batch = _db!.batch();
-    final inputsRef =
-        _db!.collection('users').doc(_uid).collection('meta').doc('inputs');
-    final fpRef =
-        _db!.collection('users').doc(_uid).collection('meta').doc('footprint');
-    batch.set(inputsRef, inputs.toMap());
-    batch.set(fpRef, footprint.toMap());
-    await batch.commit();
-    log('saveCalculation: Firestore write succeeded', name: 'ClimaRepository');
-  } catch (e) {
-    log('saveCalculation remote failed: $e', name: 'ClimaRepository');
-  }
-}
 
   // ----- Diet -----
   Future<List<DietLogEntry>> dietLog({int? days}) async {
-    final cutoff = days == null
-        ? null
-        : DateTime.now().subtract(Duration(days: days));
+    final cutoff =
+        days == null ? null : DateTime.now().subtract(Duration(days: days));
     if (!isRemoteAvailable) {
       return _localDietLog
           .where((e) => cutoff == null || e.loggedAt.isAfter(cutoff))
@@ -209,7 +261,8 @@ Future<void> saveCalculation(
     }
   }
 
-  Future<CommunityPost> createPost(String body, {required String authorName, List<String> tags = const []}) async {
+  Future<CommunityPost> createPost(String body,
+      {required String authorName, List<String> tags = const []}) async {
     final post = CommunityPost(
       id: 'local_${DateTime.now().millisecondsSinceEpoch}',
       authorName: authorName,
@@ -232,13 +285,15 @@ Future<void> saveCalculation(
   Future<void> likePost(String id) async {
     final idx = _localPosts.indexWhere((p) => p.id == id);
     if (idx >= 0) {
-      _localPosts[idx] = _localPosts[idx].copyWith(likes: _localPosts[idx].likes + 1);
+      _localPosts[idx] =
+          _localPosts[idx].copyWith(likes: _localPosts[idx].likes + 1);
     }
     if (isRemoteAvailable) {
       try {
-        await _db!.collection('posts').doc(id).update({
-          'likes': FieldValue.increment(1),
-        });
+        await _db!
+            .collection('posts')
+            .doc(id)
+            .update({'likes': FieldValue.increment(1)});
       } catch (_) {/* local-only post or offline */}
     }
   }
@@ -263,14 +318,13 @@ Future<void> saveCalculation(
     _signedPetitions.add(p.id);
     final idx = _localPetitions.indexWhere((q) => q.id == p.id);
     if (idx >= 0) {
-      _localPetitions[idx] =
-          _localPetitions[idx].copyWith(signatureCount: _localPetitions[idx].signatureCount + 1);
+      _localPetitions[idx] = _localPetitions[idx]
+          .copyWith(signatureCount: _localPetitions[idx].signatureCount + 1);
     }
     if (isRemoteAvailable) {
       try {
-        await _db!.collection('petitions').doc(p.id).update({
-          'signatureCount': FieldValue.increment(1),
-        });
+        await _db!.collection('petitions').doc(p.id).update(
+            {'signatureCount': FieldValue.increment(1)});
         await _db!
             .collection('users')
             .doc(_uid)
@@ -283,7 +337,7 @@ Future<void> saveCalculation(
     }
   }
 
-  /// Computes lifetime kg saved by completed actions (annualized estimate).
+  /// Computes lifetime kg saved by completed actions.
   Future<double> totalCo2eSavedKg() async {
     final list = await completedActions();
     return list.fold<double>(0, (acc, c) => acc + c.co2eKgSaved);

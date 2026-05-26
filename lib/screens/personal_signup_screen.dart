@@ -74,7 +74,7 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
               decoration: const BoxDecoration(
                 image: DecorationImage(
                   // Using your final public URL
-                  image: AssetImage("assets/images/world.png"),
+                  image: AssetImage("assets/images/earth.png"),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -109,7 +109,22 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
                   // Action Buttons
                   _buildButton(text: 'Sign Up', onPressed: _signUp, isPrimary: true),
                   const SizedBox(height: 16),
-                  _buildButton(text: 'Sign up with Google', onPressed: () { /* TODO: Implement Google Sign In */ }, isPrimary: false),
+                  _buildButton(
+                    text: 'Sign up with Google',
+                    onPressed: () async {
+                      final user = await _authService.signInWithGoogle(
+                        isSignUp: true,
+                        userType: 'personal',
+                      );
+                      if (user != null && mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const HomeShell()),
+                          (_) => false,
+                        );
+                      }
+                    },
+                    isPrimary: false,
+                  ),
                   const SizedBox(height: 24),
 
                   // Login Link

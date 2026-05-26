@@ -1,122 +1,116 @@
-import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  User? get currentUser => _auth.currentUser;
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  /// Signs up a user with email and password, then stores their data in Firestore.
+  /// Email/password sign up — used by Personal and Business screens
   Future<User?> signUp({
     required String email,
     required String password,
     required String name,
-    required String userType,
+    required String userType, // 'personal' or 'business'
   }) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (userCredential.user != null) {
-        await _storeUserData(
-          uid: userCredential.user!.uid,
-          email: email,
-          name: name,
-          userType: userType,
-        );
-        return userCredential.user;
-      }
-    } on FirebaseAuthException catch (e) {
-      log('Failed to sign up: ${e.message}', name: 'FirebaseAuthService');
-      return null;
-    } catch (e) {
-      log('An unexpected error occurred: $e', name: 'FirebaseAuthService');
-      return null;
-    }
-    return null;
-  }
+      final User? user = credential.user;
+      if (user == null) return null;
 
-  /// Signs in a user with email and password.
-  Future<User?> signIn({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return userCredential.user;
-    } on FirebaseAuthException catch (e) {
-      log('Failed to sign in: ${e.message}', name: 'FirebaseAuthService');
-      return null;
-    } catch (e) {
-      log('An unexpected error occurred: $e', name: 'FirebaseAuthService');
-      return null;
-    }
-  }
+      await user.updateDisplayName(name);
 
-/// Signs in a user with Google.
-Future<User?> signInWithGoogle() async {
-  try {
-    // Web-compatible Google Sign-In using signInWithPopup
-    final googleProvider = GoogleAuthProvider();
-    final UserCredential userCredential =
-        await _auth.signInWithPopup(googleProvider);
-    final User? user = userCredential.user;
-
-    if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) {
-        await _storeUserData(
-          uid: user.uid,
-          email: user.email ?? '',
-          name: user.displayName ?? 'Google User',
-          userType: 'personal',
-        );
-      }
-    }
-    return user;
-  } on FirebaseAuthException catch (e) {
-    log('Google sign-in FirebaseAuthException: ${e.message}',
-        name: 'FirebaseAuthService');
-    return null;
-  } catch (e) {
-    log('Google sign-in unexpected error: $e', name: 'FirebaseAuthService');
-    return null;
-  }
-}
-
-  /// Signs out the current user (both Firebase and Google).
-  Future<void> signOut() async {
-    try {
-      await _auth.signOut();
-    } catch (e) {
-      log('Error signing out: $e', name: 'FirebaseAuthService');
-    }
-  }
-
-  /// Stores user data in Firestore.
-  Future<void> _storeUserData({
-    required String uid,
-    required String email,
-    required String name,
-    required String userType,
-  }) async {
-    try {
-      await _firestore.collection('users').doc(uid).set({
-        'uid': uid,
-        'email': email,
+      await _db.collection('users').doc(user.uid).set({
+        'uid': user.uid,
         'name': name,
+        'email': email,
+        'photoUrl': '',
         'userType': userType,
-        'createdAt': Timestamp.now(),
-        'linkedAccountId': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'dietaryPreferences': [],
+        'allergens': [],
+        'savedActions': [],
+        'savedRecipes': [],
       });
+
+      return user;
     } catch (e) {
-      log('Failed to store user data: $e', name: 'FirebaseAuthService');
+      print('[FirebaseAuthService] signUp error: $e');
+      return null;
     }
+  }
+
+  /// Google sign in OR sign up — used by login_screen.dart
+  /// and the Google buttons on personal/business signup screens
+  Future<User?> signInWithGoogle({
+    bool isSignUp = false,
+    String userType = 'personal',
+  }) async {
+    try {
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        userCredential = await _auth.signInWithPopup(googleProvider);
+      } else {
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        userCredential = await _auth.signInWithProvider(googleProvider);
+      }
+
+      final User? user = userCredential.user;
+      if (user == null) return null;
+
+      await _createOrUpdateUserDocument(
+        user,
+        userType: userType,
+        forceCreate: isSignUp,
+      );
+
+      return user;
+    } catch (e) {
+      print('[FirebaseAuthService] signInWithGoogle error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _createOrUpdateUserDocument(
+    User user, {
+    String userType = 'personal',
+    bool forceCreate = false,
+  }) async {
+    final docRef = _db.collection('users').doc(user.uid);
+    final docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      await docRef.set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'userType': userType,
+        'createdAt': FieldValue.serverTimestamp(),
+        'dietaryPreferences': [],
+        'allergens': [],
+        'savedActions': [],
+        'savedRecipes': [],
+      });
+    } else {
+      await docRef.update({
+        'name': user.displayName ?? '',
+        'photoUrl': user.photoURL ?? '',
+      });
+    }
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
   }
 }

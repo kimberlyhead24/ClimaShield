@@ -133,7 +133,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             const Text('Diet', style: ClimaText.title),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _dietType,
+              initialValue: _dietType,
               decoration: climaInputDecoration('Diet pattern'),
               items: const [
                 DropdownMenuItem(value: 'meat_heavy', child: Text('Meat-heavy')),
@@ -185,7 +185,7 @@ class _ResultCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: ClimaColors.primary.withOpacity(0.55),
+        color: ClimaColors.primary.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -220,7 +220,7 @@ class _ResultCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 6,
-              backgroundColor: Colors.white.withOpacity(0.4),
+              backgroundColor: Colors.white.withValues(alpha: 0.4),
               valueColor: const AlwaysStoppedAnimation(ClimaColors.accent),
             ),
           ),

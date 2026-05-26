@@ -77,7 +77,7 @@ class _DietScreenState extends State<DietScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ClimaColors.primary.withOpacity(0.45),
+              color: ClimaColors.primary.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(

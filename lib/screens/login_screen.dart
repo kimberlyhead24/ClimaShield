@@ -1,7 +1,6 @@
-import 'dart:developer';
-import 'package:clima_shield/firebase_auth_service.dart';
-import 'package:clima_shield/screens/home_shell.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../firebase_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,9 +10,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,155 +22,230 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() async {
-    String email = _emailController.text;
-    String password = _passwordController.text;
+  Future<void> _handleEmailSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    final result = await _authService.signIn(email: email, password: password);
-
-    if (result != null) {
-      log("Login successful! User ID: ${result.uid}", name: 'LoginScreen');
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
-        (_) => false,
-      );
-    } else {
-      log("Login failed.", name: 'LoginScreen');
-      if (!mounted) return;
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Check your email & password.')),
+        const SnackBar(content: Text('Please enter your email and password.')),
       );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      if (!mounted) return;
+
+      if (credential.user != null) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      String message = 'Sign-in failed. Please try again.';
+      if (e.code == 'user-not-found') message = 'No account found for that email.';
+      if (e.code == 'wrong-password') message = 'Incorrect password.';
+      if (e.code == 'invalid-email') message = 'Invalid email address.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _signInWithGoogle() async {
-      final result = await _authService.signInWithGoogle();
-      if (result != null) {
-        log("Google login successful! User: ${result.email}", name: 'LoginScreen');
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeShell()),
-          (_) => false,
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final User? user = await _authService.signInWithGoogle(isSignUp: false);
+      if (!mounted) return;
+      if (user != null) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign-in was cancelled or failed. Please try again.'),
+          ),
         );
-    } else {
-      log("Google login failed or cancelled.", name: 'LoginScreen');
+      }
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google sign-in failed. Please try again.')),
+        SnackBar(content: Text('Error: ${e.toString()}')),
       );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 320,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/world.png"),
-                  fit: BoxFit.cover,
+      backgroundColor: const Color(0xFF1A1A2E),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A2E),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.eco, size: 72, color: Color(0xFF4CAF50)),
+                const SizedBox(height: 12),
+                const Text(
+                  'Welcome Back',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'ClimaShield',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF0F1914),
-                      fontSize: 28,
-                      fontFamily: 'Be Vietnam Pro',
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 8),
+                const Text(
+                  'Sign in to your ClimaShield account.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.white60),
+                ),
+                const SizedBox(height: 36),
+
+                // ── Email field ───────────────────────────────────────────
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Email',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white12,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(Icons.email_outlined,
+                        color: Colors.white54),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Password field ────────────────────────────────────────
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white12,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        color: Colors.white54),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Login button ──────────────────────────────────────────
+                if (_isLoading)
+                  const CircularProgressIndicator(color: Color(0xFF4CAF50))
+                else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _handleEmailSignIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Log In',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  _buildTextField(controller: _emailController, hintText: 'Email', keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 16),
-                  _buildTextField(controller: _passwordController, hintText: 'Password', obscureText: true),
-                  const SizedBox(height: 24),
-                  _buildButton(text: 'Log In', onPressed: _login, isPrimary: true),
+
+                  // ── Divider ─────────────────────────────────────────────
+                  const Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white24)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('or',
+                            style: TextStyle(color: Colors.white38)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white24)),
+                    ],
+                  ),
                   const SizedBox(height: 16),
-                  _buildButton(
-                    text: 'Sign in with Google', 
-                    onPressed: _signInWithGoogle, 
-                    isPrimary: false
-                    ),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    onPressed: () {
-                      // Pop back to the welcome screen
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text(
-                      "Don't have an account? Sign up",
-                      style: TextStyle(
-                        color: Color(0xFF598C6D),
-                        fontSize: 14,
-                        fontFamily: 'Be Vietnam Pro',
+
+                  // ── Sign in with Google ─────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _handleGoogleSignIn,
+                      icon: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'G',
+                            style: TextStyle(
+                              color: Color(0xFF4285F4),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      label: const Text(
+                        'Sign in with Google',
+                        style: TextStyle(color: Colors.white, fontSize: 15),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white38),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
                 ],
-              ),
+
+                const SizedBox(height: 32),
+                const Text(
+                  'By continuing, you agree to our Terms of Service\nand Privacy Policy.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.white38),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({required TextEditingController controller, required String hintText, bool obscureText = false, TextInputType keyboardType = TextInputType.text}) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Color(0xFF598C6D)),
-        filled: true,
-        fillColor: const Color(0xFFE8F2ED),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      ),
-    );
-  }
-
-  Widget _buildButton({required String text, required VoidCallback onPressed, required bool isPrimary}) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? const Color(0xFF93E0B2) : const Color(0xFFE8F2ED),
-          foregroundColor: const Color(0xFF0F1914),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          elevation: 0,
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 16,
-            fontFamily: 'Be Vietnam Pro',
-            fontWeight: FontWeight.w700,
           ),
         ),
       ),

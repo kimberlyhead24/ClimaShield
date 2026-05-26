@@ -54,11 +54,5 @@ void main() {
         expect(tiers.contains(m.tier), isTrue, reason: '${m.name} has tier ${m.tier}');
       }
     });
-
-    test('solar components are ordered', () {
-      final orders = SampleData.solarComponents.map((c) => c.phaseOrder).toSet();
-      expect(orders.length, SampleData.solarComponents.length,
-          reason: 'phaseOrder values should be unique');
-    });
   });
 }

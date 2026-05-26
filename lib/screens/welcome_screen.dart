@@ -21,7 +21,7 @@ class WelcomeScreen extends StatelessWidget {
               decoration: const BoxDecoration(
                 image: DecorationImage(
                   // Using local image asset instead of network image for better performance and reliability
-                  image: AssetImage("assets/images/world.png"),
+                  image: AssetImage("assets/images/earth.png"),
                   fit: BoxFit.cover,
                 ),
               ),

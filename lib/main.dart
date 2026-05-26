@@ -42,6 +42,10 @@ class ClimaShieldApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const AuthGate(),
+      routes: {
+        '/home': (_) => const HomeShell(),
+        '/welcome': (_) => const WelcomeScreen(),
+      }
     );
   }
 }

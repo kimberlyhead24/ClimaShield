@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/repository.dart';
 import '../models/climate_action.dart';
-import '../theme.dart';
+import 'action_detail_screen.dart';
 
 class ActionsScreen extends StatefulWidget {
   const ActionsScreen({super.key});
@@ -12,13 +12,22 @@ class ActionsScreen extends StatefulWidget {
 }
 
 class _ActionsScreenState extends State<ActionsScreen> {
-  ActionCategory? _filter;
+  ActionCategory? _categoryFilter;
+  _StatusFilter _statusFilter = _StatusFilter.all;
   Set<String> _completedIds = {};
+  String _search = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadCompleted();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCompleted() async {
@@ -27,219 +36,469 @@ class _ActionsScreenState extends State<ActionsScreen> {
     setState(() => _completedIds = list.map((c) => c.actionId).toSet());
   }
 
+  List<ClimateAction> get _filtered {
+    var result = ClimaRepository.instance.allActions();
+
+    // Search filter — searches title + all category labels
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      result = result
+          .where((a) =>
+              a.title.toLowerCase().contains(q) ||
+              a.categories.any((c) => c.label.toLowerCase().contains(q)))
+          .toList();
+    }
+
+    // Category filter — matches if action has the category in its list
+    if (_categoryFilter != null) {
+      result = result
+          .where((a) => a.categories.contains(_categoryFilter))
+          .toList();
+    }
+
+    // Status filter
+    result = switch (_statusFilter) {
+      _StatusFilter.all => result,
+      _StatusFilter.todo =>
+        result.where((a) => !_completedIds.contains(a.id)).toList(),
+      _StatusFilter.done =>
+        result.where((a) => _completedIds.contains(a.id)).toList(),
+    };
+
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final all = ClimaRepository.instance.allActions();
-    final filtered =
-        _filter == null ? all : all.where((a) => a.category == _filter).toList();
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text('Climate-positive actions', style: ClimaText.headline),
-        const SizedBox(height: 4),
-        const Text(
-          'Pick one and bank the savings toward your surplus.',
-          style: ClimaText.muted,
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 36,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _Chip(label: 'All', selected: _filter == null, onTap: () => setState(() => _filter = null)),
-              for (final c in ActionCategory.values)
-                _Chip(
-                  label: c.label,
-                  selected: _filter == c,
-                  onTap: () => setState(() => _filter = c),
+    final filtered = _filtered;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF111416),
+      body: RefreshIndicator(
+        onRefresh: _loadCompleted,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              backgroundColor: const Color(0xFF111416),
+              pinned: true,
+              centerTitle: true,
+              title: const Text(
+                'Find Your Next Action',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w700,
+                  height: 1.28,
                 ),
-            ],
-          ),
+              ),
+            ),
+
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Search bar ──────────────────────────────────────────
+                    Container(
+                      height: 48,
+                      decoration: ShapeDecoration(
+                        color: const Color(0xFF2B3035),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          const Icon(Icons.search,
+                              color: Color(0xFFA3AAB2), size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Manrope',
+                                fontSize: 16,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Search actions',
+                                hintStyle: TextStyle(
+                                  color: Color(0xFFA3AAB2),
+                                  fontSize: 16,
+                                  fontFamily: 'Manrope',
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.50,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                              onChanged: (v) =>
+                                  setState(() => _search = v.trim()),
+                            ),
+                          ),
+                          if (_search.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() => _search = '');
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.only(right: 12),
+                                child: Icon(Icons.close,
+                                    color: Color(0xFFA3AAB2), size: 18),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _StatusToggle(
+                      current: _statusFilter,
+                      onChange: (v) => setState(() => _statusFilter = v),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Category chips ──────────────────────────────────────
+                    SizedBox(
+                      height: 32,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _FilterChip(
+                            label: 'All',
+                            selected: _categoryFilter == null,
+                            onTap: () =>
+                                setState(() => _categoryFilter = null),
+                          ),
+                          for (final c in ActionCategory.values)
+                            _FilterChip(
+                              label: c.label,
+                              selected: _categoryFilter == c,
+                              onTap: () =>
+                                  setState(() => _categoryFilter = c),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    const Text(
+                      'Actions',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w700,
+                        height: 1.28,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+
+            filtered.isEmpty
+                ? SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        _statusFilter == _StatusFilter.done
+                            ? 'No completed actions yet.\nStart taking action!'
+                            : 'No actions match this filter.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFA3AAB2),
+                          fontSize: 15,
+                          fontFamily: 'Manrope',
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 173 / (173 + 99),
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final a = filtered[index];
+                          return _ActionGridCard(
+                            action: a,
+                            done: _completedIds.contains(a.id),
+                            onTap: () => _openDetail(a),
+                          );
+                        },
+                        childCount: filtered.length,
+                      ),
+                    ),
+                  ),
+          ],
         ),
-        const SizedBox(height: 16),
-        for (final a in filtered)
-          _ActionCard(
-            action: a,
-            done: _completedIds.contains(a.id),
-            onTap: () => _openDetail(a),
-          ),
-      ],
+      ),
     );
   }
 
   void _openDetail(ClimateAction a) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ActionDetailScreen(action: a),
-      ),
+      MaterialPageRoute(builder: (_) => ActionDetailScreen(action: a)),
     ).then((_) => _loadCompleted());
   }
 }
 
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _Chip({required this.label, required this.selected, required this.onTap});
+// ── Status filter enum ────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        backgroundColor: ClimaColors.surface,
-        selectedColor: ClimaColors.primary,
-        labelStyle: ClimaText.body,
-      ),
-    );
-  }
-}
+enum _StatusFilter { all, todo, done }
 
-class _ActionCard extends StatelessWidget {
-  final ClimateAction action;
-  final bool done;
-  final VoidCallback onTap;
-  const _ActionCard({required this.action, required this.done, required this.onTap});
+// ── Status toggle ─────────────────────────────────────────────────────────────
+
+class _StatusToggle extends StatelessWidget {
+  final _StatusFilter current;
+  final ValueChanged<_StatusFilter> onChange;
+  const _StatusToggle({required this.current, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      height: 40,
       decoration: BoxDecoration(
-        color: ClimaColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF2B3035),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        onTap: onTap,
-        title: Text(action.title, style: ClimaText.title.copyWith(fontSize: 15)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${action.category.label} • ~${action.co2eKgPerYear.toStringAsFixed(0)} kg CO₂e/yr • difficulty ${action.difficulty}/5',
-            style: ClimaText.muted,
-          ),
-        ),
-        trailing: done
-            ? const Icon(Icons.check_circle, color: ClimaColors.accent)
-            : const Icon(Icons.chevron_right, color: ClimaColors.inkSoft),
-      ),
-    );
-  }
-}
-
-class ActionDetailScreen extends StatefulWidget {
-  final ClimateAction action;
-  const ActionDetailScreen({super.key, required this.action});
-
-  @override
-  State<ActionDetailScreen> createState() => _ActionDetailScreenState();
-}
-
-class _ActionDetailScreenState extends State<ActionDetailScreen> {
-  bool _saving = false;
-
-  Future<void> _markDone() async {
-    setState(() => _saving = true);
-    await ClimaRepository.instance.markActionComplete(widget.action);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Logged: ${widget.action.title}')),
-    );
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final a = widget.action;
-    return Scaffold(
-      backgroundColor: ClimaColors.bg,
-      appBar: AppBar(
-        title: Text(a.category.label),
-        backgroundColor: ClimaColors.bg,
-        foregroundColor: ClimaColors.ink,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      child: Row(
         children: [
-          Text(a.title, style: ClimaText.headline),
-          const SizedBox(height: 8),
-          Text(
-            'Estimated savings: ~${a.co2eKgPerYear.toStringAsFixed(0)} kg CO₂e per year',
-            style: ClimaText.muted,
-          ),
-          const SizedBox(height: 16),
-          Text(a.summary, style: ClimaText.body),
-          if (a.steps.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            const Text('How to do it', style: ClimaText.title),
-            const SizedBox(height: 8),
-            for (var i = 0; i < a.steps.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: ClimaColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              color: ClimaColors.ink, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(a.steps[i], style: ClimaText.body)),
-                  ],
-                ),
-              ),
-          ],
-          if (a.requiresProfessional || (a.safetyNote?.isNotEmpty ?? false)) ...[
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: ClimaColors.warning.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ClimaColors.warning.withOpacity(0.45)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: const [
-                    Icon(Icons.shield_outlined, color: ClimaColors.warning),
-                    SizedBox(width: 8),
-                    Text('Safety first', style: ClimaText.title),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(
-                    a.safetyNote ??
-                        'This action involves systems that require a licensed professional and permits. Use ClimaShield to plan, not to wire.',
-                    style: ClimaText.body,
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 28),
-          ElevatedButton(
-            onPressed: _saving ? null : _markDone,
-            style: climaPrimaryButtonStyle(),
-            child: Text(_saving ? 'Saving...' : 'I did this'),
-          ),
+          _option('All', _StatusFilter.all),
+          _option('To Do', _StatusFilter.todo),
+          _option('Done', _StatusFilter.done),
         ],
       ),
     );
   }
+
+  Widget _option(String label, _StatusFilter value) {
+    final selected = current == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChange(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF4CAF50) : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFFA3AAB2),
+              fontFamily: 'Manrope',
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 14,
+              height: 1.50,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category filter chip ──────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterChip(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: ShapeDecoration(
+            color: selected
+                ? const Color(0xFF4CAF50)
+                : const Color(0xFF2B3035),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFFA3AAB2),
+              fontFamily: 'Manrope',
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              height: 1.50,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Grid card ─────────────────────────────────────────────────────────────────
+
+class _ActionGridCard extends StatelessWidget {
+  final ClimateAction action;
+  final bool done;
+  final VoidCallback onTap;
+  const _ActionGridCard(
+      {required this.action, required this.done, required this.onTap});
+
+  String _impactLabel(double kg) {
+    if (kg >= 500) return '5';
+    if (kg >= 200) return '4';
+    if (kg >= 100) return '3';
+    if (kg >= 50) return '2';
+    return '1';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = action;
+
+    // Category label: join all categories e.g. "Waste · Biodiversity"
+    final categoryLabel = a.categories.map((c) => c.label).join(' · ');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Square hero image ─────────────────────────────────────────
+            Expanded(
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    // Try Firestore imageUrl first, fall back to asset
+                    child: a.imageUrl != null && a.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            a.imageUrl!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _assetImage(a),
+                          )
+                        : _assetImage(a),
+                  ),
+                  if (done)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '✓ Done',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Manrope',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Title ─────────────────────────────────────────────────────
+            Text(
+              a.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: 'Manrope',
+                fontWeight: FontWeight.w500,
+                height: 1.50,
+              ),
+            ),
+
+            // ── Categories ────────────────────────────────────────────────
+            Text(
+              categoryLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFA3AAB2),
+                fontSize: 14,
+                fontFamily: 'Manrope',
+                fontWeight: FontWeight.w400,
+                height: 1.50,
+              ),
+            ),
+
+            // ── Impact · Difficulty ───────────────────────────────────────
+            Text(
+              'Impact: ${_impactLabel(a.co2eKgPerYear)} · ${a.difficulty}',
+              style: const TextStyle(
+                color: Color(0xFFA3AAB2),
+                fontSize: 14,
+                fontFamily: 'Manrope',
+                fontWeight: FontWeight.w400,
+                height: 1.50,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _assetImage(ClimateAction a) => Image.asset(
+        a.primaryCategory.imageAsset,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A2320),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Icon(Icons.eco_outlined,
+                color: Color(0xFF4CAF50), size: 32),
+          ),
+        ),
+      );
 }
