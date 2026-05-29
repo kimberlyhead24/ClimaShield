@@ -26,7 +26,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
   }
 
   Future<void> _resolveTemplates() async {
-    // TODO: pull userState from user profile — hardcoded IL for now
     const userState = 'IL';
     final resolved = await TemplateResolver.resolve(
       widget.action.scientificBasis,
@@ -61,7 +60,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
     );
   }
 
-  // ── Show the science modal ──────────────────────────────────────────────────
   void _showScienceModal() {
     showModalBottomSheet(
       context: context,
@@ -89,7 +87,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
           Expanded(
             child: CustomScrollView(
               slivers: [
-                // ── App bar ────────────────────────────────────────────────
                 SliverAppBar(
                   backgroundColor: const Color(0xFF111611),
                   foregroundColor: Colors.white,
@@ -107,10 +104,8 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Hero image ────────────────────────────────────────
                       _HeroImage(action: a),
 
-                      // ── Category chips ────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: Wrap(
@@ -121,7 +116,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                         ),
                       ),
 
-                      // ── Action title ──────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                         child: Text(
@@ -136,7 +130,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                         ),
                       ),
 
-                      // ── Stat tiles: Impact / Difficulty / Cost ────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                         child: Row(
@@ -172,10 +165,8 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                         ),
                       ),
 
-                      // ── Impact metrics row ────────────────────────────────
                       _ImpactMetricsRow(score: a.impactScore),
 
-                      // ── Description ───────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: Text(
@@ -190,7 +181,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                         ),
                       ),
 
-                      // ── Environmental impact areas tags ───────────────────
                       if (a.environmentalImpactAreas.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -212,14 +202,14 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                                 spacing: 8,
                                 runSpacing: 6,
                                 children: a.environmentalImpactAreas
-                                    .map((area) => _ImpactAreaChip(label: area))
+                                    .map((area) =>
+                                        _ImpactAreaChip(label: area))
                                     .toList(),
                               ),
                             ],
                           ),
                         ),
 
-                      // ── Science button ────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                         child: GestureDetector(
@@ -286,7 +276,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                         ),
                       ),
 
-                      // ── Safety note ───────────────────────────────────────
                       if (a.requiresProfessional ||
                           (a.safetyNote?.isNotEmpty ?? false))
                         Padding(
@@ -294,10 +283,11 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha:0.15),
+                              color: Colors.orange.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: Colors.orange.withValues(alpha: 0.35)),
+                                  color: Colors.orange
+                                      .withValues(alpha: 0.35)),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,7 +312,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                           ),
                         ),
 
-                      // ── Step-by-step guide ────────────────────────────────
                       if (a.stepByStepGuide.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.fromLTRB(16, 28, 16, 12),
@@ -361,7 +350,6 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
             ),
           ),
 
-          // ── Sticky CTA button ─────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -417,10 +405,14 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
 
   Color _difficultyColor(String d) {
     switch (d.toLowerCase()) {
-      case 'easy':   return const Color(0xFF8CD177);
-      case 'medium': return const Color(0xFFFFC857);
-      case 'hard':   return const Color(0xFFFF6B6B);
-      default:       return Colors.white;
+      case 'easy':
+        return const Color(0xFF8CD177);
+      case 'medium':
+        return const Color(0xFFFFC857);
+      case 'hard':
+        return const Color(0xFFFF6B6B);
+      default:
+        return Colors.white;
     }
   }
 }
@@ -433,27 +425,42 @@ class _HeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Try Firestore image_url first, fall back to local asset
+    final heroHeight =
+        (MediaQuery.of(context).size.height * 0.28).clamp(200.0, 320.0);
+
+    Widget imageWidget;
+
     if (action.imageUrl != null && action.imageUrl!.isNotEmpty) {
-      return Image.network(
+      imageWidget = Image.network(
         action.imageUrl!,
         width: double.infinity,
-        height: 218,
+        height: heroHeight,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _assetImage(action),
+        // ✅ Fixed: use distinct parameter names instead of repeated _
+        errorBuilder: (context, error, stackTrace) =>
+            _assetImage(action, heroHeight),
       );
+    } else {
+      imageWidget = _assetImage(action, heroHeight);
     }
-    return _assetImage(action);
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        bottom: Radius.circular(16),
+      ),
+      child: imageWidget,
+    );
   }
 
-  Widget _assetImage(ClimateAction a) => Image.asset(
+  Widget _assetImage(ClimateAction a, double height) => Image.asset(
         a.primaryCategory.imageAsset,
         width: double.infinity,
-        height: 218,
+        height: height,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
+        // ✅ Fixed: use distinct parameter names instead of repeated _
+        errorBuilder: (context, error, stackTrace) => Container(
           width: double.infinity,
-          height: 218,
+          height: height,
           color: const Color(0xFF1A2320),
           child: const Center(
             child: Icon(Icons.eco, color: Color(0xFF4CAF50), size: 56),
@@ -473,9 +480,10 @@ class _CategoryChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Color(0xFF4CAF50).withValues(alpha: 0.15),
+        color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Color(0xFF4CAF50).withValues(alpha: 0.4)),
+        border: Border.all(
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
       ),
       child: Text(
         label,
@@ -572,7 +580,7 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ── Impact metrics row (CO2 / water / waste / habitat) ────────────────────────
+// ── Impact metrics row ────────────────────────────────────────────────────────
 
 class _ImpactMetricsRow extends StatelessWidget {
   final ActionImpactScore score;
@@ -701,10 +709,10 @@ class _StepRow extends StatelessWidget {
             height: 28,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: Color(0xFF4CAF50).withValues(alpha: 0.15),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: Color(0xFF4CAF50).withValues(alpha: 0.4)),
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -736,7 +744,7 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-// ── Science modal (bottom sheet) ──────────────────────────────────────────────
+// ── Science modal ─────────────────────────────────────────────────────────────
 
 class _ScienceModal extends StatelessWidget {
   final String scientificBasis;
@@ -764,7 +772,6 @@ class _ScienceModal extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Drag handle
             const SizedBox(height: 12),
             Container(
               width: 40,
@@ -775,13 +782,11 @@ class _ScienceModal extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-
             Expanded(
               child: ListView(
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                 children: [
-                  // Header
                   Row(
                     children: [
                       Container(
@@ -824,7 +829,6 @@ class _ScienceModal extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Scientific basis text
                   if (scientificBasis.isNotEmpty) ...[
                     const Text(
                       'SCIENTIFIC BASIS',
@@ -842,8 +846,7 @@ class _ScienceModal extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF111D2B),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: const Color(0xFF1A4A6B)),
+                        border: Border.all(color: const Color(0xFF1A4A6B)),
                       ),
                       child: Text(
                         scientificBasis,
@@ -859,7 +862,6 @@ class _ScienceModal extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // Impact areas
                   if (environmentalImpactAreas.isNotEmpty) ...[
                     const Text(
                       'IMPACT AREAS',
@@ -876,7 +878,7 @@ class _ScienceModal extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: environmentalImpactAreas
-                          .map((a) => Container(
+                          .map((area) => Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
@@ -886,7 +888,7 @@ class _ScienceModal extends StatelessWidget {
                                       color: const Color(0xFF1A4A6B)),
                                 ),
                                 child: Text(
-                                  a,
+                                  area,
                                   style: const TextStyle(
                                     color: Color(0xFF5BB8FF),
                                     fontFamily: 'Manrope',
@@ -900,7 +902,6 @@ class _ScienceModal extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // Source link
                   if (sourceLink.isNotEmpty) ...[
                     const Text(
                       'PRIMARY SOURCE',
@@ -926,8 +927,8 @@ class _ScienceModal extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF111D2B),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: const Color(0xFF1A4A6B)),
+                          border:
+                              Border.all(color: const Color(0xFF1A4A6B)),
                         ),
                         child: Row(
                           children: [

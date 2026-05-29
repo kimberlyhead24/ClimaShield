@@ -39,7 +39,6 @@ class _ActionsScreenState extends State<ActionsScreen> {
   List<ClimateAction> get _filtered {
     var result = ClimaRepository.instance.allActions();
 
-    // Search filter — searches title + all category labels
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
       result = result
@@ -49,14 +48,12 @@ class _ActionsScreenState extends State<ActionsScreen> {
           .toList();
     }
 
-    // Category filter — matches if action has the category in its list
     if (_categoryFilter != null) {
       result = result
           .where((a) => a.categories.contains(_categoryFilter))
           .toList();
     }
 
-    // Status filter
     result = switch (_statusFilter) {
       _StatusFilter.all => result,
       _StatusFilter.todo =>
@@ -71,6 +68,17 @@ class _ActionsScreenState extends State<ActionsScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered;
+
+    // On wider screens (tablet/desktop) use more columns
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth >= 900
+        ? 4
+        : screenWidth >= 600
+            ? 3
+            : 2;
+
+    // Cap the image portion to a reasonable size on desktop
+    final cardImageSize = (screenWidth / crossAxisCount - 24).clamp(120.0, 220.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFF111416),
@@ -228,11 +236,11 @@ class _ActionsScreenState extends State<ActionsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     sliver: SliverGrid(
                       gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 173 / (173 + 99),
+                        childAspectRatio: cardImageSize / (cardImageSize + 99),
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -240,6 +248,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
                           return _ActionGridCard(
                             action: a,
                             done: _completedIds.contains(a.id),
+                            imageSize: cardImageSize,
                             onTap: () => _openDetail(a),
                           );
                         },
@@ -368,9 +377,14 @@ class _FilterChip extends StatelessWidget {
 class _ActionGridCard extends StatelessWidget {
   final ClimateAction action;
   final bool done;
+  final double imageSize;
   final VoidCallback onTap;
-  const _ActionGridCard(
-      {required this.action, required this.done, required this.onTap});
+  const _ActionGridCard({
+    required this.action,
+    required this.done,
+    required this.imageSize,
+    required this.onTap,
+  });
 
   String _impactLabel(double kg) {
     if (kg >= 500) return '5';
@@ -383,8 +397,6 @@ class _ActionGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = action;
-
-    // Category label: join all categories e.g. "Waste · Biodiversity"
     final categoryLabel = a.categories.map((c) => c.label).join(' · ');
 
     return Material(
@@ -395,20 +407,21 @@ class _ActionGridCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Square hero image ─────────────────────────────────────────
-            Expanded(
+            // ── Fixed-size square hero image ──────────────────────────────
+            SizedBox(
+              width: imageSize,
+              height: imageSize,
               child: Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    // Try Firestore imageUrl first, fall back to asset
                     child: a.imageUrl != null && a.imageUrl!.isNotEmpty
                         ? Image.network(
                             a.imageUrl!,
-                            width: double.infinity,
-                            height: double.infinity,
+                            width: imageSize,
+                            height: imageSize,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _assetImage(a),
+                            errorBuilder: (_, __, ___) => _assetImage(a),
                           )
                         : _assetImage(a),
                   ),
@@ -487,10 +500,12 @@ class _ActionGridCard extends StatelessWidget {
 
   Widget _assetImage(ClimateAction a) => Image.asset(
         a.primaryCategory.imageAsset,
-        width: double.infinity,
-        height: double.infinity,
+        width: imageSize,
+        height: imageSize,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
+        errorBuilder: (_, __, ___) => Container(
+          width: imageSize,
+          height: imageSize,
           decoration: BoxDecoration(
             color: const Color(0xFF1A2320),
             borderRadius: BorderRadius.circular(12),
