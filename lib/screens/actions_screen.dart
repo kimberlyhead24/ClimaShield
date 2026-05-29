@@ -421,7 +421,7 @@ class _ActionGridCard extends StatelessWidget {
                             width: imageSize,
                             height: imageSize,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _assetImage(a),
+                            errorBuilder: (_, _, _) => _assetImage(a),
                           )
                         : _assetImage(a),
                   ),
@@ -503,7 +503,7 @@ class _ActionGridCard extends StatelessWidget {
         width: imageSize,
         height: imageSize,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (_, _, _) => Container(
           width: imageSize,
           height: imageSize,
           decoration: BoxDecoration(
