@@ -44,7 +44,10 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
     );
 
     if (result != null) {
-      log("Sign up successful! User ID: ${result.uid}", name: 'BusinessSignUpScreen');
+      log(
+        "Sign up successful! User ID: ${result.uid}",
+        name: 'BusinessSignUpScreen',
+      );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -54,7 +57,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
       log("Sign up failed.", name: 'BusinessSignUpScreen');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign up failed. Try a stronger password or different email.')),
+        const SnackBar(
+          content: Text(
+            'Sign up failed. Try a stronger password or different email.',
+          ),
+        ),
       );
     }
   }
@@ -78,7 +85,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                 ),
               ),
             ),
-            
+
             // Form Section
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -96,32 +103,51 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Form Fields
-                  _buildTextField(controller: _businessNameController, hintText: 'Business Name'),
+                  _buildTextField(
+                    controller: _businessNameController,
+                    hintText: 'Business Name',
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField(controller: _emailController, hintText: 'Email', keyboardType: TextInputType.emailAddress),
+                  _buildTextField(
+                    controller: _emailController,
+                    hintText: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField(controller: _passwordController, hintText: 'Password', obscureText: true),
+                  _buildTextField(
+                    controller: _passwordController,
+                    hintText: 'Password',
+                    obscureText: true,
+                  ),
                   const SizedBox(height: 24),
 
                   // Action Buttons
-                  _buildButton(text: 'Sign Up', onPressed: _signUp, isPrimary: true),
+                  _buildButton(
+                    text: 'Sign Up',
+                    onPressed: _signUp,
+                    isPrimary: true,
+                  ),
                   const SizedBox(height: 16),
                   _buildButton(
-                    text: 'Sign up with Google', 
+                    text: 'Sign up with Google',
                     onPressed: () async {
                       final user = await _authService.signInWithGoogle(
-                        isSignUp: true, 
+                        isSignUp: true,
                         userType: 'business',
                       );
-                      if (user != null && mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const HomeShell()),
-                          (_) => false,
-                        );
+                      if (user == null) {
+                        return; // Sign-in failed or was canceled
                       }
-                    }, 
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomeShell()),
+                        (_) => false,
+                      );
+                    },
                     isPrimary: false,
                   ),
                   const SizedBox(height: 24),
@@ -132,7 +158,9 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                       // Navigate to the Login Screen
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
                       );
                     },
                     child: const Text(
@@ -154,7 +182,12 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
   }
 
   // Helper method to build styled text fields to avoid repetition
-  Widget _buildTextField({required TextEditingController controller, required String hintText, bool obscureText = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -168,19 +201,28 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 20,
+        ),
       ),
     );
   }
 
   // Helper method to build styled buttons
-  Widget _buildButton({required String text, required VoidCallback onPressed, required bool isPrimary}) {
+  Widget _buildButton({
+    required String text,
+    required VoidCallback onPressed,
+    required bool isPrimary,
+  }) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? const Color(0xFF93E0B2) : const Color(0xFFE8F2ED),
+          backgroundColor: isPrimary
+              ? const Color(0xFF93E0B2)
+              : const Color(0xFFE8F2ED),
           foregroundColor: const Color(0xFF0F1914),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

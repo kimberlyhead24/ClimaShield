@@ -6,7 +6,7 @@ class DietQuizScreen extends StatefulWidget {
   const DietQuizScreen({super.key});
 
   @override
-  _DietQuizScreenState createState() => _DietQuizScreenState();
+  State<DietQuizScreen> createState() => _DietQuizScreenState();
 }
 
 class _DietQuizScreenState extends State<DietQuizScreen> {
@@ -15,13 +15,13 @@ class _DietQuizScreenState extends State<DietQuizScreen> {
 
   void _nextQuestion(String dietGenre) {
     setState(() {
-      _selectedDietGenre = dietGenre; // For now, we'll just take the last selection
+      _selectedDietGenre = dietGenre;
       if (_currentQuestionIndex < dietQuiz.length - 1) {
         _currentQuestionIndex++;
       } else {
-        // Quiz is finished, navigate to the meal plan screen
-        // Navigator.push(context, MaterialPageRoute(builder: (context) => MealPlanScreen(dietGenre: _selectedDietGenre)));
-        print("Quiz finished! Selected Diet: $_selectedDietGenre");
+        // TODO(schema-v2): navigate to MealPlanScreen(dietGenre: _selectedDietGenre)
+        // For now, just log
+        // log('Quiz finished! Selected Diet: $_selectedDietGenre', name: 'DietQuizScreen');
       }
     });
   }
@@ -29,21 +29,37 @@ class _DietQuizScreenState extends State<DietQuizScreen> {
   @override
   Widget build(BuildContext context) {
     final Question currentQuestion = dietQuiz[_currentQuestionIndex];
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Your Diet Profile")),
+      appBar: AppBar(title: const Text('Your Diet Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(currentQuestion.text, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              currentQuestion.text,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
-            ...currentQuestion.options.map((option) {
-              return ElevatedButton(
-                onPressed: () => _nextQuestion(option.dietGenre),
-                child: Text(option.text),
-              );
-            }),
+            if (currentQuestion.type == QuestionType.textInput)
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Write ingredients separated by commas',
+                ),
+                onSubmitted: (value) {
+                  // TODO(schema-v2): store disliked ingredients somewhere
+                  _nextQuestion(_selectedDietGenre);
+                },
+              )
+            else
+              ...currentQuestion.options.map((option) {
+                final String dietGenre = option.dietGenre ?? option.value;
+                return ElevatedButton(
+                  onPressed: () => _nextQuestion(dietGenre),
+                  child: Text(option.text),
+                );
+              }),
           ],
         ),
       ),

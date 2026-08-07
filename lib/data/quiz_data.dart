@@ -28,7 +28,8 @@ final List<Question> dietQuiz = [
   ),
   Question(
     id: 'red_meat_freq',
-    text: "In a typical week, how often do you eat red meat (like beef or lamb)?",
+    text:
+        "In a typical week, how often do you eat red meat (like beef or lamb)?",
     type: QuestionType.singleChoice,
     options: [
       Option(text: "5+ times a week", value: "5_plus"),
@@ -48,7 +49,7 @@ final List<Question> dietQuiz = [
       Option(text: "A family with kids", value: "family"),
     ],
   ),
-    Question(
+  Question(
     id: 'cooking_style',
     text: "What's your cooking style?",
     type: QuestionType.singleChoice,
@@ -76,9 +77,10 @@ final List<Question> dietQuiz = [
   ),
   Question(
     id: 'disliked_ingredients',
-    text: "Are there any ingredients you dislike? List them, separated by commas.",
+    text:
+        "Are there any ingredients you dislike? List them, separated by commas.",
     type: QuestionType.textInput,
-    // No options needed for a text input question
+    options: const [],
   ),
   Question(
     id: 'allergies',
@@ -97,8 +99,14 @@ final List<Question> dietQuiz = [
     text: "How would you like to approach your new climate-healthy diet?",
     type: QuestionType.singleChoice,
     options: [
-      Option(text: "One Step at a Time (small, gradual changes)", value: "gradual"),
-      Option(text: "Steady Progress (noticeable weekly changes)", value: "steady"),
+      Option(
+        text: "One Step at a Time (small, gradual changes)",
+        value: "gradual",
+      ),
+      Option(
+        text: "Steady Progress (noticeable weekly changes)",
+        value: "steady",
+      ),
       Option(text: "All In (ready for a big change now)", value: "all_in"),
     ],
   ),

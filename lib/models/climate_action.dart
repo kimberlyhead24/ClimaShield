@@ -12,27 +12,43 @@ enum ActionCategory {
 extension ActionCategoryX on ActionCategory {
   String get label {
     switch (this) {
-      case ActionCategory.energy:       return 'Energy';
-      case ActionCategory.transport:    return 'Transport';
-      case ActionCategory.diet:         return 'Diet';
-      case ActionCategory.waste:        return 'Waste';
-      case ActionCategory.water:        return 'Water';
-      case ActionCategory.biodiversity: return 'Biodiversity';
-      case ActionCategory.advocacy:     return 'Advocacy';
-      case ActionCategory.diy:          return 'DIY';
+      case ActionCategory.energy:
+        return 'Energy';
+      case ActionCategory.transport:
+        return 'Transport';
+      case ActionCategory.diet:
+        return 'Diet';
+      case ActionCategory.waste:
+        return 'Waste';
+      case ActionCategory.water:
+        return 'Water';
+      case ActionCategory.biodiversity:
+        return 'Biodiversity';
+      case ActionCategory.advocacy:
+        return 'Advocacy';
+      case ActionCategory.diy:
+        return 'DIY';
     }
   }
 
   String get imageAsset {
     switch (this) {
-      case ActionCategory.energy:       return 'assets/images/energy.png';
-      case ActionCategory.transport:    return 'assets/images/transport.png';
-      case ActionCategory.diet:         return 'assets/images/diet.png';
-      case ActionCategory.waste:        return 'assets/images/waste_reduction.png';
-      case ActionCategory.water:        return 'assets/images/water_savings.png';
-      case ActionCategory.biodiversity: return 'assets/images/biodiversity.png';
-      case ActionCategory.advocacy:     return 'assets/images/advocacy.png';
-      case ActionCategory.diy:          return 'assets/images/energy.png';
+      case ActionCategory.energy:
+        return 'assets/images/energy.png';
+      case ActionCategory.transport:
+        return 'assets/images/transport.png';
+      case ActionCategory.diet:
+        return 'assets/images/diet.png';
+      case ActionCategory.waste:
+        return 'assets/images/waste_reduction.png';
+      case ActionCategory.water:
+        return 'assets/images/water_savings.png';
+      case ActionCategory.biodiversity:
+        return 'assets/images/biodiversity.png';
+      case ActionCategory.advocacy:
+        return 'assets/images/advocacy.png';
+      case ActionCategory.diy:
+        return 'assets/images/energy.png';
     }
   }
 
@@ -64,33 +80,89 @@ class ActionImpactScore {
     this.waterSavedGallons = 0,
   });
 
-  factory ActionImpactScore.fromMap(Map<String, dynamic>? m) {
-    if (m == null) return const ActionImpactScore();
+  factory ActionImpactScore.fromMap(Object? rawMap) {
+    if (rawMap is! Map) {
+      return const ActionImpactScore();
+    }
+
+    final m = Map<String, dynamic>.from(rawMap);
+
     return ActionImpactScore(
       co2eReductionPerYearKg:
           (m['co2e_reduction_per_year_kg'] as num?)?.toDouble() ?? 0,
       pollinatorHabitatSqFt:
           (m['pollinator_habitat_sq_ft'] as num?)?.toDouble() ?? 0,
-      wasteDivertedKg:
-          (m['waste_diverted_kg'] as num?)?.toDouble() ?? 0,
-      waterSavedGallons:
-          (m['water_saved_gallons'] as num?)?.toDouble() ?? 0,
+      wasteDivertedKg: (m['waste_diverted_kg'] as num?)?.toDouble() ?? 0,
+      waterSavedGallons: (m['water_saved_gallons'] as num?)?.toDouble() ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() => {
-        'co2e_reduction_per_year_kg': co2eReductionPerYearKg,
-        'pollinator_habitat_sq_ft': pollinatorHabitatSqFt,
-        'waste_diverted_kg': wasteDivertedKg,
-        'water_saved_gallons': waterSavedGallons,
-      };
+    'co2e_reduction_per_year_kg': co2eReductionPerYearKg,
+    'pollinator_habitat_sq_ft': pollinatorHabitatSqFt,
+    'waste_diverted_kg': wasteDivertedKg,
+    'water_saved_gallons': waterSavedGallons,
+  };
 
-  // Total impact score 0–100 for sorting/filtering (weighted)
-  double get totalScore {
+  /// Temporary UI ranking heuristic.
+  ///
+  /// This is not a scientific carbon calculation and must not be used for
+  /// carbon accounting, reporting, model training labels, or comparisons
+  /// between unrelated environmental-impact units
+  double get priorityScore {
     return (co2eReductionPerYearKg * 0.5) +
         (pollinatorHabitatSqFt * 0.3) +
         (wasteDivertedKg * 0.1) +
         (waterSavedGallons * 0.002);
+  }
+}
+
+/// Scientific context for an action-impact estimate.
+class ActionImpactEvidence {
+  /// Duration represented by the estimated impact.
+  ///
+  /// Most current action estimares are annual, so this defaults to one year.
+  final int timeHorizonYears;
+
+  /// Quality of the impact estimate:
+  /// 'estimated', 'modeled', 'measured', or 'verified'.
+  final String dataQuality;
+
+  /// Source URLs supporting the stated impact values.
+  final List<String> sourceUrls;
+
+  // Conditions assumed when calculating the impact.
+  final List<String> assumptions;
+
+  const ActionImpactEvidence({
+    this.timeHorizonYears = 1,
+    this.dataQuality = 'estimated',
+    this.sourceUrls = const [],
+    this.assumptions = const [],
+  });
+
+  factory ActionImpactEvidence.fromMap(Object? rawMap) {
+    if (rawMap is! Map) {
+      return const ActionImpactEvidence();
+    }
+
+    final m = Map<String, dynamic>.from(rawMap);
+
+    return ActionImpactEvidence(
+      timeHorizonYears: (m['time_horizon_years'] as num?)?.toInt() ?? 1,
+      dataQuality: m['data_quality'] as String? ?? 'estimated',
+      sourceUrls: (m['source_urls'] as List?)?.cast<String>() ?? const [],
+      assumptions: (m['assumptions'] as List?)?.cast<String>() ?? [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'time_horizon_years': timeHorizonYears,
+      'data_quality': dataQuality,
+      'source_urls': sourceUrls,
+      'assumptions': assumptions,
+    };
   }
 }
 
@@ -102,16 +174,20 @@ class ClimateAction {
   final String description;
   final List<ActionCategory> categories; // multi-category support
   final List<String> environmentalImpactAreas;
-  final String costEstimate;             // "$" | "$$" | "$$$" | "$$$$"
-  final String difficulty;               // "Easy" | "Medium" | "Hard"
+  final String
+  costEstimate; // "$"= under $100 | "$$"= $100-$1000 | "$$$"= $1000-$10000 | "$$$$"= over $10000 or more
+  final String difficulty; // "Easy" | "Medium" | "Hard"
   final ActionImpactScore impactScore;
+  final ActionImpactEvidence impactEvidence;
   final bool isMvpAction;
   final List<String> keywords;
   final String scientificBasis;
   final String sourceLink;
   final List<String> stepByStepGuide;
   final String? videoTutorialUrl;
-  final String? imageUrl;                // Firestore URL (falls back to asset)
+  final String? imageUrl; // Firestore URL (falls back to asset)
+  final bool
+  usesLocationData; // true if action requires location data for impact calculation
   final bool requiresProfessional;
   final String? safetyNote;
 
@@ -125,10 +201,14 @@ class ClimateAction {
       categories.isNotEmpty ? categories.first : ActionCategory.energy;
   int get difficultyInt {
     switch (difficulty.toLowerCase()) {
-      case 'easy':   return 1;
-      case 'medium': return 3;
-      case 'hard':   return 5;
-      default:       return 1;
+      case 'easy':
+        return 1;
+      case 'medium':
+        return 3;
+      case 'hard':
+        return 5;
+      default:
+        return 1;
     }
   }
 
@@ -141,6 +221,7 @@ class ClimateAction {
     required this.costEstimate,
     required this.difficulty,
     required this.impactScore,
+    this.impactEvidence = const ActionImpactEvidence(),
     this.isMvpAction = false,
     this.keywords = const [],
     this.scientificBasis = '',
@@ -148,6 +229,7 @@ class ClimateAction {
     this.stepByStepGuide = const [],
     this.videoTutorialUrl,
     this.imageUrl,
+    this.usesLocationData = false,
     this.requiresProfessional = false,
     this.safetyNote,
   });
@@ -167,18 +249,22 @@ class ClimateAction {
       categories: categories,
       environmentalImpactAreas:
           (m['environmental_impact_areas'] as List?)?.cast<String>() ?? [],
-      costEstimate: m['cost_estimate'] as String? ?? m['costEstimate'] as String? ?? '\$',
+      costEstimate:
+          m['cost_estimate'] as String? ?? m['costEstimate'] as String? ?? '\$',
       difficulty: m['difficulty'] as String? ?? 'Easy',
-      impactScore: ActionImpactScore.fromMap(
-          m['impact_score'] as Map<String, dynamic>?),
+      impactScore: ActionImpactScore.fromMap(m['impact_score']),
+      impactEvidence: ActionImpactEvidence.fromMap(m['impact_evidence']),
       isMvpAction: m['is_mvp_action'] as bool? ?? false,
       keywords: (m['keywords'] as List?)?.cast<String>() ?? [],
       scientificBasis: m['scientific_basis'] as String? ?? '',
       sourceLink: m['source_link'] as String? ?? '',
-      stepByStepGuide:
-          (m['step_by_step_guide'] as List?)?.cast<String>() ?? [],
+      stepByStepGuide: (m['step_by_step_guide'] as List?)?.cast<String>() ?? [],
       videoTutorialUrl: m['video_tutorial_url'] as String?,
       imageUrl: m['image_url'] as String?,
+      usesLocationData:
+          (m['uses_location_data'] as bool?) ??
+          (m['usesLocationData'] as bool?) ??
+          false,
       requiresProfessional: m['requires_professional'] as bool? ?? false,
       safetyNote: m['safety_note'] as String?,
     );
@@ -186,27 +272,32 @@ class ClimateAction {
 
   // Legacy fromMap for any existing local/sample data
   factory ClimateAction.fromMap(Map<String, dynamic> m) =>
-      ClimateAction.fromFirestore(m, m['id'] as String? ?? m['action_id'] as String? ?? '');
+      ClimateAction.fromFirestore(
+        m,
+        m['id'] as String? ?? m['action_id'] as String? ?? '',
+      );
 
   Map<String, dynamic> toMap() => {
-        'action_id': id,
-        'name': name,
-        'description': description,
-        'category': categories.map((c) => c.name).toList(),
-        'environmental_impact_areas': environmentalImpactAreas,
-        'cost_estimate': costEstimate,
-        'difficulty': difficulty,
-        'impact_score': impactScore.toMap(),
-        'is_mvp_action': isMvpAction,
-        'keywords': keywords,
-        'scientific_basis': scientificBasis,
-        'source_link': sourceLink,
-        'step_by_step_guide': stepByStepGuide,
-        'video_tutorial_url': videoTutorialUrl,
-        'image_url': imageUrl,
-        'requires_professional': requiresProfessional,
-        'safety_note': safetyNote,
-      };
+    'action_id': id,
+    'name': name,
+    'description': description,
+    'category': categories.map((c) => c.name).toList(),
+    'environmental_impact_areas': environmentalImpactAreas,
+    'cost_estimate': costEstimate,
+    'difficulty': difficulty,
+    'impact_score': impactScore.toMap(),
+    'is_mvp_action': isMvpAction,
+    'keywords': keywords,
+    'scientific_basis': scientificBasis,
+    'source_link': sourceLink,
+    'step_by_step_guide': stepByStepGuide,
+    'video_tutorial_url': videoTutorialUrl,
+    'image_url': imageUrl,
+    'requires_professional': requiresProfessional,
+    'safety_note': safetyNote,
+    'uses_location_data': usesLocationData,
+    'impact_evidence': impactEvidence.toMap(),
+  };
 }
 
 // ── CompletedAction ───────────────────────────────────────────────────────────
@@ -225,19 +316,19 @@ class CompletedAction {
   });
 
   Map<String, dynamic> toMap() => {
-        'actionId': actionId,
-        'completedAt': completedAt.toIso8601String(),
-        'co2eKgSaved': co2eKgSaved,
-        'co2eKgPerYear': co2eKgSaved,
-        'category': category,
-      };
+    'actionId': actionId,
+    'completedAt': completedAt.toIso8601String(),
+    'co2eKgSaved': co2eKgSaved,
+    'co2eKgPerYear': co2eKgSaved,
+    'category': category,
+  };
 
   factory CompletedAction.fromMap(Map<String, dynamic> m) => CompletedAction(
-        actionId: m['actionId'] as String,
-        completedAt: m['completedAt'] is String
-            ? DateTime.parse(m['completedAt'] as String)
-            : (m['completedAt'] as dynamic)?.toDate() ?? DateTime.now(),
-        co2eKgSaved: (m['co2eKgSaved'] as num?)?.toDouble() ?? 0,
-        category: m['category'] as String? ?? '',
-      );
+    actionId: m['actionId'] as String,
+    completedAt: m['completedAt'] is String
+        ? DateTime.parse(m['completedAt'] as String)
+        : (m['completedAt'] as dynamic)?.toDate() ?? DateTime.now(),
+    co2eKgSaved: (m['co2eKgSaved'] as num?)?.toDouble() ?? 0,
+    category: m['category'] as String? ?? '',
+  );
 }

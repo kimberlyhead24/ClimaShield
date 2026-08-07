@@ -1,3 +1,5 @@
+import 'dart:nativewrappers/_internal/vm/lib/developer.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -41,7 +43,7 @@ class FirebaseAuthService {
 
       return user;
     } catch (e) {
-      print('[FirebaseAuthService] signUp error: $e');
+      log('[FirebaseAuthService] signUp error: $e');
       return null;
     }
   }
@@ -76,7 +78,7 @@ class FirebaseAuthService {
 
       return user;
     } catch (e) {
-      print('[FirebaseAuthService] signInWithGoogle error: $e');
+      log('[FirebaseAuthService] signInWithGoogle error: $e');
       return null;
     }
   }
