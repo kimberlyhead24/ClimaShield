@@ -15,32 +15,32 @@ class CarbonFootprint {
   });
 
   factory CarbonFootprint.empty() => CarbonFootprint(
-        transportKg: 0,
-        homeEnergyKg: 0,
-        dietKg: 0,
-        goodsKg: 0,
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
-      );
+    transportKg: 0,
+    homeEnergyKg: 0,
+    dietKg: 0,
+    goodsKg: 0,
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
+  );
 
   double get totalKg => transportKg + homeEnergyKg + dietKg + goodsKg;
   double get totalTonnes => totalKg / 1000.0;
 
   Map<String, dynamic> toMap() => {
-        'transportKg': transportKg,
-        'homeEnergyKg': homeEnergyKg,
-        'dietKg': dietKg,
-        'goodsKg': goodsKg,
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'transportKg': transportKg,
+    'homeEnergyKg': homeEnergyKg,
+    'dietKg': dietKg,
+    'goodsKg': goodsKg,
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   factory CarbonFootprint.fromMap(Map<String, dynamic> m) => CarbonFootprint(
-        transportKg: (m['transportKg'] as num?)?.toDouble() ?? 0,
-        homeEnergyKg: (m['homeEnergyKg'] as num?)?.toDouble() ?? 0,
-        dietKg: (m['dietKg'] as num?)?.toDouble() ?? 0,
-        goodsKg: (m['goodsKg'] as num?)?.toDouble() ?? 0,
-        updatedAt:
-            DateTime.tryParse(m['updatedAt'] as String? ?? '') ?? DateTime.now(),
-      );
+    transportKg: (m['transportKg'] as num?)?.toDouble() ?? 0,
+    homeEnergyKg: (m['homeEnergyKg'] as num?)?.toDouble() ?? 0,
+    dietKg: (m['dietKg'] as num?)?.toDouble() ?? 0,
+    goodsKg: (m['goodsKg'] as num?)?.toDouble() ?? 0,
+    updatedAt:
+        DateTime.tryParse(m['updatedAt'] as String? ?? '') ?? DateTime.now(),
+  );
 }
 
 /// Raw inputs used by the carbon calculator. Stored so users can revisit and
@@ -52,7 +52,8 @@ class CarbonCalculatorInputs {
   final double flightsLongHaulPerYear;
   final double electricityKwhPerMonth;
   final double naturalGasThermsPerMonth;
-  final String dietType; // 'meat_heavy', 'average', 'low_meat', 'vegetarian', 'vegan'
+  final String
+  dietType; // 'meat_heavy', 'average', 'low_meat', 'vegetarian', 'vegan'
   final int householdSize;
   final double monthlyShoppingUsd;
 
@@ -69,16 +70,16 @@ class CarbonCalculatorInputs {
   });
 
   Map<String, dynamic> toMap() => {
-        'carMilesPerWeek': carMilesPerWeek,
-        'carMpg': carMpg,
-        'flightsShortHaulPerYear': flightsShortHaulPerYear,
-        'flightsLongHaulPerYear': flightsLongHaulPerYear,
-        'electricityKwhPerMonth': electricityKwhPerMonth,
-        'naturalGasThermsPerMonth': naturalGasThermsPerMonth,
-        'dietType': dietType,
-        'householdSize': householdSize,
-        'monthlyShoppingUsd': monthlyShoppingUsd,
-      };
+    'carMilesPerWeek': carMilesPerWeek,
+    'carMpg': carMpg,
+    'flightsShortHaulPerYear': flightsShortHaulPerYear,
+    'flightsLongHaulPerYear': flightsLongHaulPerYear,
+    'electricityKwhPerMonth': electricityKwhPerMonth,
+    'naturalGasThermsPerMonth': naturalGasThermsPerMonth,
+    'dietType': dietType,
+    'householdSize': householdSize,
+    'monthlyShoppingUsd': monthlyShoppingUsd,
+  };
 
   factory CarbonCalculatorInputs.fromMap(Map<String, dynamic> m) =>
       CarbonCalculatorInputs(
@@ -94,7 +95,6 @@ class CarbonCalculatorInputs {
             (m['naturalGasThermsPerMonth'] as num?)?.toDouble() ?? 0,
         dietType: m['dietType'] as String? ?? 'average',
         householdSize: (m['householdSize'] as num?)?.toInt() ?? 1,
-        monthlyShoppingUsd:
-            (m['monthlyShoppingUsd'] as num?)?.toDouble() ?? 0,
+        monthlyShoppingUsd: (m['monthlyShoppingUsd'] as num?)?.toDouble() ?? 0,
       );
 }
