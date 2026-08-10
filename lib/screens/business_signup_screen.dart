@@ -115,12 +115,17 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                         isSignUp: true, 
                         userType: 'business',
                       );
-                      if (user != null && mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const HomeShell()),
-                          (_) => false,
-                        );
+                      if (user == null) {
+                        return; // Sign-in failed or was canceled
                       }
+
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomeShell()),
+                        (_) => false,
+                      );
                     }, 
                     isPrimary: false,
                   ),

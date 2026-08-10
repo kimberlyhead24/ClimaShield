@@ -17,6 +17,8 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   CarbonFootprint? _footprint;
   double _saved = 0;
+  double _dietSavings = 0;
+  double _appliedDietSavings = 0;
   // CHANGE: added category savings map
   Map<String, double> _savedByCategory = {};
   bool _loading = true;
@@ -31,14 +33,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _load() async {
     final results = await Future.wait([
       ClimaRepository.instance.loadFootprint(),
-      ClimaRepository.instance.totalCo2eSavedKg(),
+      ClimaRepository.instance.totalNonDietActionSavingsKg(),
       ClimaRepository.instance.co2eSavedByCategory(),
+      ClimaRepository.instance.totalDietSavingsKg(),
     ]);
     if (!mounted) return;
+    
+    final footprint = results[0] as CarbonFootprint?;
+    final nonDietActionSavings = results[1] as double;
+    final savedByCategory = results[2] as Map<String, double>;
+    final loggedDietSavings = results[3] as double;
+
+    //A user cannot avoid more diet emissions than exist in the originial
+    // 12-month diet baseline projection
+    final dietBaselineKg = footprint?.dietKg ?? 0;
+    final appliedDietSavings = loggedDietSavings.clamp(0.0, dietBaselineKg).toDouble();
+
     setState(() {
-      _footprint = results[0] as CarbonFootprint?;
-      _saved = results[1] as double;
-      _savedByCategory = results[2] as Map<String, double>;
+      _footprint= footprint;
+      _dietSavings = loggedDietSavings;
+      _appliedDietSavings = appliedDietSavings;
+      _saved = nonDietActionSavings + appliedDietSavings;
+      _savedByCategory = savedByCategory;
       _loading = false;
     });
   }
@@ -191,13 +207,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 12),
                   _ImpactCard(
                     title: 'Diet Impact',
-                    subtitle: _impactSubtitle(
-                      'diet',
-                      'Plant-based choices make a real difference',
-                    ),
-                    imageUrl: 'assets/images/diet.png',
-                    savedKg: _savedByCategory['diet'] ?? 0,
-                    onTap: () => _open(const ActionsScreen()),
+                    subtitle: _dietSavings == 0
+                      ? 'Log recipes and smart outside meals to reduce your 12-month projection'
+                      : '${_appliedDietSavings.toStringAsFixed(1)} kg CO₂e '
+                        'estimated from logged meal swaps',
+                    imageUrl: 'assets/images/diet.png', 
+                    savedKg: _appliedDietSavings,
+                    onTap: () => _open(const DietScreen()),
                   ),
 
                   const SizedBox(height: 24),
@@ -268,7 +284,7 @@ class _SurplusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fpKg = footprint?.totalKg ?? 0;
     final net = fpKg - savedKg;
-    final isSurplus = net <= 0 && fpKg > 0;
+    final isSurplus = net < 0 && fpKg > 0;
     final isNeutral = net == 0 && fpKg > 0;
     final double progress =
         fpKg > 0 ? (savedKg / fpKg).clamp(0.0, 1.0) : 0.0;
@@ -291,10 +307,10 @@ class _SurplusCard extends StatelessWidget {
       message =
           'You are no longer contributing to climate change. Now push into surplus and help offset others!';
     } else {
-      headline = 'Your Climate Balance';
+      headline = 'Your 12-month climate balance';
       message =
-          'You\'ve reduced your emissions by ${savedKg.toStringAsFixed(0)} kg CO₂e so far. '
-          '${net.toStringAsFixed(0)} kg to go until you\'re carbon neutral.';
+          'You have reduced your 12-month projected emissions by ${savedKg.toStringAsFixed(0)} kg CO₂e so far. '
+          '${net.toStringAsFixed(0)} kg remains in your projection.';
     }
 
     return Column(
@@ -325,7 +341,7 @@ class _SurplusCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isSurplus ? 'Current Surplus' : 'Progress to Neutral',
+                isSurplus ? 'Current Surplus' : 'Projection progress',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -368,7 +384,7 @@ class _SurplusCard extends StatelessWidget {
                 ),
               ),
               const Text(
-                'Goal: 0 kg (neutral)',
+                'Goal: 0 kg projected net emissions',
                 style: TextStyle(
                   color: Color(0xFFA3B2AA),
                   fontSize: 13,

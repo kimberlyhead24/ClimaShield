@@ -7,7 +7,7 @@ import '../theme.dart';
 import 'actions_screen.dart';
 import 'community_screen.dart';
 import 'dashboard_screen.dart';
-import 'diet_screen.dart';
+import 'diet_onboarding_gate.dart';
 import 'welcome_screen.dart';
 
 /// Top-level navigation host. Bottom-nav with five primary destinations.
@@ -23,10 +23,10 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   // Note: MoreScreen removed; we only keep the 4 main tabs.
-  final _pages = const [
+  final List<Widget> _pages = const [
     DashboardScreen(),
     ActionsScreen(),
-    DietScreen(),
+    DietOnboardingGate(),
     CommunityScreen(),
   ];
 

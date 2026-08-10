@@ -116,12 +116,19 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
                         isSignUp: true,
                         userType: 'personal',
                       );
-                      if (user != null && mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const HomeShell()),
-                          (_) => false,
-                        );
+
+                      if (user == null) {
+                        return; // Sign-in failed or was canceled
                       }
+
+                      if (!context.mounted) {
+                        return; // Ensure the context is still valid
+                      }
+
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomeShell()),
+                        (_) => false,
+                      );
                     },
                     isPrimary: false,
                   ),

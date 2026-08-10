@@ -11,6 +11,8 @@ import '../models/diet_entry.dart';
 import '../models/footprint.dart';
 import 'sample_data.dart';
 import '../models/carbon_calculation_record.dart';
+import '../models/diet_profile.dart';
+import '../models/recipe_model.dart';
 
 /// Thin data layer with two modes:
 /// - Firestore (when a user is signed in and Firebase initialized OK)
@@ -43,6 +45,7 @@ class ClimaRepository {
   final List<DietLogEntry> _localDietLog = [];
   CarbonCalculatorInputs? _localInputs;
   CarbonFootprint? _localFootprint;
+  DietProfile? _localDietProfile;
   late final List<CommunityPost> _localPosts = SampleData.posts();
   late final List<Petition> _localPetitions = SampleData.petitions();
   final Set<String> _signedPetitions = {};
@@ -96,7 +99,18 @@ class ClimaRepository {
       log('markActionComplete remote failed: $e', name: 'ClimaRepository');
     }
   }
+  /// Annual estimated savings from completed non-diet actions.
+  /// 
+  /// Logged recipe swaps are calculated separately from real meal records,
+  /// so diet-category actions are excluded to avoid double counting.
+  
+  Future<double> totalNonDietActionSavingsKg() async {
+    final list = await completedActions();
 
+    return list
+      .where((entry) => entry.category != 'diet')
+      .fold<double>(0, (total, entry) => total + entry.co2eKgSaved,);
+  }
   /// NEW: Returns total CO₂e saved per category, e.g. {'energy': 145.0, 'transport': 80.0}
   /// Used by the dashboard Impact Areas section.
   Future<Map<String, double>> co2eSavedByCategory() async {
@@ -402,6 +416,66 @@ class ClimaRepository {
     }
   }
 
+  /// Loads the authenticated user's current saved diet profile.
+  ///
+  /// Returns null when the user has not completed the diet questionnaire.
+  Future<DietProfile?> loadDietProfile() async {
+    if (!isRemoteAvailable) {
+      return _localDietProfile;
+    }
+
+    try {
+      final document = await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('dietProfile')
+          .doc('current')
+          .get();
+
+      if (!document.exists) {
+        return _localDietProfile;
+      }
+
+      final profile = DietProfile.fromMap(document.data() ?? {});
+      _localDietProfile = profile;
+
+      return profile;
+    } catch (e) {
+      log('loadDietProfile failed: $e', name: 'ClimaRepository');
+      return _localDietProfile;
+    }
+  }
+
+  /// Saves the authenticated user's diet profile to Firestore.
+  Future<void> saveDietProfile(DietProfile profile) async {
+    _localDietProfile = profile;
+
+    if (!isRemoteAvailable) {
+      log(
+        'saveDietProfile: local-only mode, skipping Firestore write',
+        name: 'ClimaRepository',
+      );
+      return;
+    }
+
+    try {
+      await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('dietProfile')
+          .doc('current')
+          .set(profile.toMap());
+
+      log(
+        'saveDietProfile: Firestore write succeeded',
+        name: 'ClimaRepository',
+      );
+    } catch (e) {
+      log('saveDietProfile failed: $e', name: 'ClimaRepository');
+      rethrow;
+    }
+  }
+
   // ----- Diet -----
   Future<List<DietLogEntry>> dietLog({int? days}) async {
     final cutoff = days == null
@@ -430,12 +504,7 @@ class ClimaRepository {
   }
 
   Future<void> logMeal(MealPreset preset) async {
-    final entry = DietLogEntry(
-      mealPresetId: preset.id,
-      name: preset.name,
-      co2eKg: preset.co2eKgPerServing,
-      loggedAt: DateTime.now(),
-    );
+    final entry = DietLogEntry.fromPreset(preset);
     _localDietLog.insert(0, entry);
     if (!isRemoteAvailable) return;
     try {
@@ -447,6 +516,56 @@ class ClimaRepository {
     } catch (e) {
       log('logMeal remote failed: $e', name: 'ClimaRepository');
     }
+  }
+
+  /// Logs a real catalog recipe and stores estimated comparative savings.
+  ///
+  /// The recipe's saved comparison data is copied into the user log so a later
+  /// catalog edit cannot alter a historical result.
+  Future<void> logRecipeMeal(
+    Recipe recipe, {
+    required int servings,
+    DateTime? plannedForDate,
+  }) async {
+    final safeServings = servings < 1 ? 1 : servings;
+
+    final savingsPerServing =
+        recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
+
+    final entry = DietLogEntry(
+      recipeId: recipe.id,
+      recipeName: recipe.title,
+      servings: safeServings,
+      estimatedSavingsKgPerServing: savingsPerServing,
+      estimatedSavingsKg: savingsPerServing * safeServings,
+      comparisonBaseline: recipe.climateImpact.comparisonBaseline,
+      plannedForDate: plannedForDate,
+      loggedAt: DateTime.now(),
+    );
+
+    _localDietLog.insert(0, entry);
+
+    if (!isRemoteAvailable) return;
+
+    try {
+      await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('dietLog')
+          .add(entry.toMap());
+    } catch (error) {
+      log('logRecipeMeal remote failed: $error', name: 'ClimaRepository');
+    }
+  }
+
+  /// Total estimated meal-swap savings from the user's diet log.
+  Future<double> totalDietSavingsKg({int? days}) async {
+    final entries = await dietLog(days: days);
+
+    return entries.fold<double>(
+      0,
+      (total, entry) => total + entry.estimatedSavingsKg,
+    );
   }
 
   // ----- Community -----
@@ -547,11 +666,5 @@ class ClimaRepository {
         log('signPetition remote failed: $e', name: 'ClimaRepository');
       }
     }
-  }
-
-  /// Computes lifetime kg saved by completed actions.
-  Future<double> totalCo2eSavedKg() async {
-    final list = await completedActions();
-    return list.fold<double>(0, (acc, c) => acc + c.co2eKgSaved);
   }
 }

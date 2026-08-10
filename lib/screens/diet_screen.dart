@@ -4,6 +4,7 @@ import '../data/repository.dart';
 import '../data/sample_data.dart';
 import '../models/diet_entry.dart';
 import '../theme.dart';
+import 'meal_plan_screen.dart';
 
 class DietScreen extends StatefulWidget {
   const DietScreen({super.key});
@@ -36,7 +37,9 @@ class _DietScreenState extends State<DietScreen> {
     await _load();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Logged ${m.name} (${m.co2eKgPerServing} kg CO₂e)')),
+      SnackBar(
+        content: Text('Logged ${m.name} (${m.co2eKgPerServing} kg CO₂e)'),
+      ),
     );
   }
 
@@ -71,8 +74,10 @@ class _DietScreenState extends State<DietScreen> {
         children: [
           const Text('Climate diet', style: ClimaText.headline),
           const SizedBox(height: 4),
-          const Text('Plant-forward meals make the biggest dent.',
-              style: ClimaText.muted),
+          const Text(
+            'Plant-forward meals make the biggest dent.',
+            style: ClimaText.muted,
+          ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -88,8 +93,10 @@ class _DietScreenState extends State<DietScreen> {
                 if (_loading)
                   const LinearProgressIndicator(minHeight: 3)
                 else
-                  Text('${dailyKg.toStringAsFixed(1)} kg CO₂e',
-                      style: ClimaText.headline),
+                  Text(
+                    '${dailyKg.toStringAsFixed(1)} kg CO₂e',
+                    style: ClimaText.headline,
+                  ),
                 const SizedBox(height: 4),
                 Text(
                   _today.isEmpty
@@ -101,23 +108,38 @@ class _DietScreenState extends State<DietScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MealPlanScreen()),
+              );
+            },
+            icon: const Icon(Icons.menu_book_outlined),
+            label: const Text('Browse climate-friendly recipes'),
+          ),
           const Text('Log a meal', style: ClimaText.title),
           const SizedBox(height: 8),
           for (final tier in tierOrder) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: _tierColor(tier),
-                    shape: BoxShape.circle,
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _tierColor(tier),
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(_tierLabel(tier), style: ClimaText.title.copyWith(fontSize: 14)),
-              ]),
+                  const SizedBox(width: 8),
+                  Text(
+                    _tierLabel(tier),
+                    style: ClimaText.title.copyWith(fontSize: 14),
+                  ),
+                ],
+              ),
             ),
             Wrap(
               spacing: 8,
@@ -141,7 +163,10 @@ class _DietScreenState extends State<DietScreen> {
             for (final e in _today)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.restaurant, color: ClimaColors.accent),
+                leading: const Icon(
+                  Icons.restaurant,
+                  color: ClimaColors.accent,
+                ),
                 title: Text(e.name),
                 trailing: Text('${e.co2eKg.toStringAsFixed(1)} kg'),
               ),
