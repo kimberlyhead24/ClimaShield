@@ -26,17 +26,25 @@ void main() {
     test('car miles increase transport footprint', () {
       const a = CarbonCalculatorInputs(carMilesPerWeek: 0);
       const b = CarbonCalculatorInputs(carMilesPerWeek: 200, carMpg: 25);
-      expect(computeFootprint(b).transportKg,
-          greaterThan(computeFootprint(a).transportKg));
+      expect(
+        computeFootprint(b).transportKg,
+        greaterThan(computeFootprint(a).transportKg),
+      );
     });
 
     test('household size divides home energy', () {
       const solo = CarbonCalculatorInputs(
-          electricityKwhPerMonth: 800, householdSize: 1);
+        electricityKwhPerMonth: 800,
+        householdSize: 1,
+      );
       const family = CarbonCalculatorInputs(
-          electricityKwhPerMonth: 800, householdSize: 4);
-      expect(computeFootprint(family).homeEnergyKg,
-          closeTo(computeFootprint(solo).homeEnergyKg / 4, 0.1));
+        electricityKwhPerMonth: 800,
+        householdSize: 4,
+      );
+      expect(
+        computeFootprint(family).homeEnergyKg,
+        closeTo(computeFootprint(solo).homeEnergyKg / 4, 0.1),
+      );
     });
   });
 
@@ -51,7 +59,11 @@ void main() {
     test('meals are tier-tagged with known tiers', () {
       const tiers = {'best', 'good', 'fair', 'high'};
       for (final m in SampleData.meals) {
-        expect(tiers.contains(m.tier), isTrue, reason: '${m.name} has tier ${m.tier}');
+        expect(
+          tiers.contains(m.tier),
+          isTrue,
+          reason: '${m.name} has tier ${m.tier}',
+        );
       }
     });
   });

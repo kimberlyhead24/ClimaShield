@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/repository.dart';
 import '../models/recipe_model.dart';
+import '../utils/recipe_scaling.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -13,7 +14,8 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  late int _servings;
+  late int _plannedYield;
+  late int _servingsEaten;
   bool _loggingMeal = false;
   bool _mealLogged = false;
 
@@ -22,7 +24,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _servings = recipe.servings > 0 ? recipe.servings : 1;
+    _plannedYield = recipe.servings > 0 ? recipe.servings : 1;
+    _servingsEaten = 1;
   }
 
   bool get _hasUsableImage {
@@ -35,8 +38,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return recipe.climateImpact.estimatedReductionKgPerServing;
   }
 
-  double get _totalEstimatedSavings {
-    return (_savingsPerServing ?? 0) * _servings;
+  double get _plannedBatchSavings {
+    return (_savingsPerServing ?? 0) * _plannedYield;
+  }
+
+  double get _loggedMealSavings {
+    return (_savingsPerServing ?? 0) * _servingsEaten;
+  }
+
+  List<RecipeIngredient> get _scaledIngredients {
+    return RecipeScaling.scaleIngredients(
+      recipe.ingredientDetails,
+      originalServings: recipe.servings,
+      targetServings: _plannedYield,
+    );
   }
 
   bool get _hasNutrition {
@@ -68,6 +83,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
   }
 
+  void _changePlannedYield(int nextValue) {
+    final safeYield = nextValue < 1 ? 1 : nextValue;
+
+    setState(() {
+      _plannedYield = safeYield;
+
+      if (_servingsEaten > _plannedYield) {
+        _servingsEaten = _plannedYield;
+      }
+
+      _mealLogged = false;
+    });
+  }
+
+  void _changeServingsEaten(int nextValue) {
+    final safeServings = nextValue.clamp(1, _plannedYield);
+
+    setState(() {
+      _servingsEaten = safeServings;
+      _mealLogged = false;
+    });
+  }
+
   Future<void> _logMeal() async {
     if (_loggingMeal || _mealLogged) return;
 
@@ -75,7 +113,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       _loggingMeal = true;
     });
 
-    await ClimaRepository.instance.logRecipeMeal(recipe, servings: _servings);
+    await ClimaRepository.instance.logRecipeMeal(
+      recipe,
+      servings: _servingsEaten,
+    );
 
     if (!mounted) return;
 
@@ -86,7 +127,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     final savingsText = _savingsPerServing == null
         ? 'Meal logged.'
-        : 'Meal logged — ${_totalEstimatedSavings.toStringAsFixed(1)} kg '
+        : 'Meal logged — ${_loggedMealSavings.toStringAsFixed(1)} kg '
               'CO₂e in estimated meal-swap savings.';
 
     ScaffoldMessenger.of(
@@ -98,7 +139,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Widget build(BuildContext context) {
     final metadata = [
       if (recipe.mealTypes.isNotEmpty) recipe.mealTypes.first,
-      if (recipe.prepTimeMinutes > 0) '${recipe.prepTimeMinutes} min prep',
+      if (recipe.effectiveTotalTimeMinutes > 0)
+        '${recipe.effectiveTotalTimeMinutes} min total',
       if (recipe.difficulty.isNotEmpty) recipe.difficulty,
     ];
 
@@ -114,7 +156,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               hasUsableImage: _hasUsableImage,
             ),
             const SizedBox(height: 16),
-
             if (metadata.isNotEmpty)
               Wrap(
                 spacing: 8,
@@ -128,9 +169,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     )
                     .toList(),
               ),
-
             if (metadata.isNotEmpty) const SizedBox(height: 16),
-
             Text(
               recipe.description,
               style: const TextStyle(
@@ -139,15 +178,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 height: 1.4,
               ),
             ),
-
             const SizedBox(height: 24),
+
+            _YieldSelector(
+              label: 'Servings to make',
+              servings: _plannedYield,
+              onDecrease: _plannedYield > 1
+                  ? () => _changePlannedYield(_plannedYield - 1)
+                  : null,
+              onIncrease: () => _changePlannedYield(_plannedYield + 1),
+              decreaseTooltip: 'Decrease servings to make',
+              increaseTooltip: 'Increase servings to make',
+            ),
+
+            const SizedBox(height: 16),
 
             if (_savingsPerServing != null) ...[
               _ImpactCard(
                 comparisonBaseline: recipe.climateImpact.comparisonBaseline,
                 savingsPerServing: _savingsPerServing!,
-                servings: _servings,
-                totalSavings: _totalEstimatedSavings,
+                plannedYield: _plannedYield,
+                plannedBatchSavings: _plannedBatchSavings,
+                servingsEaten: _servingsEaten,
+                loggedMealSavings: _loggedMealSavings,
               ),
               const SizedBox(height: 16),
             ],
@@ -163,11 +216,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
             const SizedBox(height: 10),
 
-            ...recipe.ingredients.map(
+            ..._scaledIngredients.map(
               (ingredient) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  '• $ingredient',
+                  '• ${RecipeQuantityFormatter.format(ingredient)}',
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -235,20 +288,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               const SizedBox(height: 24),
             ],
 
-            _ServingSelector(
-              servings: _servings,
-              onDecrease: _servings > 1
-                  ? () {
-                      setState(() {
-                        _servings -= 1;
-                      });
-                    }
+            _YieldSelector(
+              label: 'Servings eaten',
+              servings: _servingsEaten,
+              onDecrease: _servingsEaten > 1
+                  ? () => _changeServingsEaten(_servingsEaten - 1)
                   : null,
-              onIncrease: () {
-                setState(() {
-                  _servings += 1;
-                });
-              },
+              onIncrease: _servingsEaten < _plannedYield
+                  ? () => _changeServingsEaten(_servingsEaten + 1)
+                  : null,
+              decreaseTooltip: 'Decrease servings eaten',
+              increaseTooltip: 'Increase servings eaten',
             ),
 
             const SizedBox(height: 16),
@@ -281,8 +331,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             const SizedBox(height: 8),
 
             const Text(
-              'Logging records estimated savings compared with the recipe’s '
-              'listed baseline meal.',
+              'Logging uses the number of servings eaten and compares the '
+              'recipe with its listed baseline meal.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
@@ -338,17 +388,71 @@ class _RecipeHero extends StatelessWidget {
   }
 }
 
+class _YieldSelector extends StatelessWidget {
+  final String label;
+  final int servings;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
+  final String decreaseTooltip;
+  final String increaseTooltip;
+
+  const _YieldSelector({
+    required this.label,
+    required this.servings,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.decreaseTooltip,
+    required this.increaseTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        IconButton(
+          onPressed: onDecrease,
+          icon: const Icon(Icons.remove_circle_outline),
+          tooltip: decreaseTooltip,
+        ),
+        SizedBox(
+          width: 36,
+          child: Text(
+            '$servings',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        IconButton(
+          onPressed: onIncrease,
+          icon: const Icon(Icons.add_circle_outline),
+          tooltip: increaseTooltip,
+        ),
+      ],
+    );
+  }
+}
+
 class _ImpactCard extends StatelessWidget {
   final String? comparisonBaseline;
   final double savingsPerServing;
-  final int servings;
-  final double totalSavings;
+  final int plannedYield;
+  final double plannedBatchSavings;
+  final int servingsEaten;
+  final double loggedMealSavings;
 
   const _ImpactCard({
     required this.comparisonBaseline,
     required this.savingsPerServing,
-    required this.servings,
-    required this.totalSavings,
+    required this.plannedYield,
+    required this.plannedBatchSavings,
+    required this.servingsEaten,
+    required this.loggedMealSavings,
   });
 
   @override
@@ -367,12 +471,15 @@ class _ImpactCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.eco_outlined, color: Colors.green),
               SizedBox(width: 8),
-              Text(
-                'Estimated meal-swap savings',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Estimated meal-swap savings',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -383,8 +490,13 @@ class _ImpactCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '$servings serving${servings == 1 ? '' : 's'}: '
-            '${totalSavings.toStringAsFixed(1)} kg CO₂e estimated savings.',
+            'Making $plannedYield serving${plannedYield == 1 ? '' : 's'} '
+            'could save ${plannedBatchSavings.toStringAsFixed(1)} kg CO₂e.',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Logging $servingsEaten serving${servingsEaten == 1 ? '' : 's'} '
+            'will record ${loggedMealSavings.toStringAsFixed(1)} kg CO₂e.',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ],
@@ -502,50 +614,6 @@ class _NutritionMetric extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ServingSelector extends StatelessWidget {
-  final int servings;
-  final VoidCallback? onDecrease;
-  final VoidCallback onIncrease;
-
-  const _ServingSelector({
-    required this.servings,
-    required this.onDecrease,
-    required this.onIncrease,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Text(
-            'How many servings did you have?',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
-        IconButton(
-          onPressed: onDecrease,
-          icon: const Icon(Icons.remove_circle_outline),
-          tooltip: 'Decrease servings',
-        ),
-        SizedBox(
-          width: 30,
-          child: Text(
-            '$servings',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        IconButton(
-          onPressed: onIncrease,
-          icon: const Icon(Icons.add_circle_outline),
-          tooltip: 'Increase servings',
-        ),
-      ],
     );
   }
 }

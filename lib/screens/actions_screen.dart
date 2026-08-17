@@ -42,9 +42,11 @@ class _ActionsScreenState extends State<ActionsScreen> {
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
       result = result
-          .where((a) =>
-              a.title.toLowerCase().contains(q) ||
-              a.categories.any((c) => c.label.toLowerCase().contains(q)))
+          .where(
+            (a) =>
+                a.title.toLowerCase().contains(q) ||
+                a.categories.any((c) => c.label.toLowerCase().contains(q)),
+          )
           .toList();
     }
 
@@ -74,11 +76,14 @@ class _ActionsScreenState extends State<ActionsScreen> {
     final crossAxisCount = screenWidth >= 900
         ? 4
         : screenWidth >= 600
-            ? 3
-            : 2;
+        ? 3
+        : 2;
 
     // Cap the image portion to a reasonable size on desktop
-    final cardImageSize = (screenWidth / crossAxisCount - 24).clamp(120.0, 220.0);
+    final cardImageSize = (screenWidth / crossAxisCount - 24).clamp(
+      120.0,
+      220.0,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF111416),
@@ -104,8 +109,10 @@ class _ActionsScreenState extends State<ActionsScreen> {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -121,8 +128,11 @@ class _ActionsScreenState extends State<ActionsScreen> {
                       child: Row(
                         children: [
                           const SizedBox(width: 16),
-                          const Icon(Icons.search,
-                              color: Color(0xFFA3AAB2), size: 20),
+                          const Icon(
+                            Icons.search,
+                            color: Color(0xFFA3AAB2),
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
@@ -156,8 +166,11 @@ class _ActionsScreenState extends State<ActionsScreen> {
                               },
                               child: const Padding(
                                 padding: EdgeInsets.only(right: 12),
-                                child: Icon(Icons.close,
-                                    color: Color(0xFFA3AAB2), size: 18),
+                                child: Icon(
+                                  Icons.close,
+                                  color: Color(0xFFA3AAB2),
+                                  size: 18,
+                                ),
                               ),
                             ),
                         ],
@@ -182,15 +195,13 @@ class _ActionsScreenState extends State<ActionsScreen> {
                           _FilterChip(
                             label: 'All',
                             selected: _categoryFilter == null,
-                            onTap: () =>
-                                setState(() => _categoryFilter = null),
+                            onTap: () => setState(() => _categoryFilter = null),
                           ),
                           for (final c in ActionCategory.values)
                             _FilterChip(
                               label: c.label,
                               selected: _categoryFilter == c,
-                              onTap: () =>
-                                  setState(() => _categoryFilter = c),
+                              onTap: () => setState(() => _categoryFilter = c),
                             ),
                         ],
                       ),
@@ -235,25 +246,21 @@ class _ActionsScreenState extends State<ActionsScreen> {
                 : SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     sliver: SliverGrid(
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
                         childAspectRatio: cardImageSize / (cardImageSize + 99),
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final a = filtered[index];
-                          return _ActionGridCard(
-                            action: a,
-                            done: _completedIds.contains(a.id),
-                            imageSize: cardImageSize,
-                            onTap: () => _openDetail(a),
-                          );
-                        },
-                        childCount: filtered.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final a = filtered[index];
+                        return _ActionGridCard(
+                          action: a,
+                          done: _completedIds.contains(a.id),
+                          imageSize: cardImageSize,
+                          onTap: () => _openDetail(a),
+                        );
+                      }, childCount: filtered.length),
                     ),
                   ),
           ],
@@ -334,8 +341,11 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -348,9 +358,7 @@ class _FilterChip extends StatelessWidget {
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: ShapeDecoration(
-            color: selected
-                ? const Color(0xFF4CAF50)
-                : const Color(0xFF2B3035),
+            color: selected ? const Color(0xFF4CAF50) : const Color(0xFF2B3035),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -431,7 +439,9 @@ class _ActionGridCard extends StatelessWidget {
                       right: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF4CAF50),
                           borderRadius: BorderRadius.circular(6),
@@ -499,21 +509,20 @@ class _ActionGridCard extends StatelessWidget {
   }
 
   Widget _assetImage(ClimateAction a) => Image.asset(
-        a.primaryCategory.imageAsset,
-        width: imageSize,
-        height: imageSize,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
-          width: imageSize,
-          height: imageSize,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A2320),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Icon(Icons.eco_outlined,
-                color: Color(0xFF4CAF50), size: 32),
-          ),
-        ),
-      );
+    a.primaryCategory.imageAsset,
+    width: imageSize,
+    height: imageSize,
+    fit: BoxFit.cover,
+    errorBuilder: (_, _, _) => Container(
+      width: imageSize,
+      height: imageSize,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2320),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: Icon(Icons.eco_outlined, color: Color(0xFF4CAF50), size: 32),
+      ),
+    ),
+  );
 }

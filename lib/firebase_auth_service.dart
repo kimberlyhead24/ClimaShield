@@ -2,10 +2,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:developer';
+
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// TODO: Structure will be changed to class GooglesignInResult {
+  /// final User? user;
+  /// final bool wasCancelled;
+  /// final String? errorCode;
+  ///
+  /// const GoogleSignInResult.success(this.user)
+  ///   : wasCanclled = false,
+  ///     errorCode = null;
+  /// const GoogleSignInResult.cancelled()
+  ///   : user = null,
+  ///     wasCancelled = true,
+  ///     errorCode = null;
+  /// const GogleSignInResult.failure(this.errorCode)
+  ///   : user = null,
+  ///     wasCancelled = false;
+  /// }
+  ///
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -21,6 +39,7 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
+
       final User? user = credential.user;
       if (user == null) return null;
 
@@ -40,9 +59,15 @@ class FirebaseAuthService {
       });
 
       return user;
-    } catch (e) {
-      log('[FirebaseAuthService] signUp error: $e');
-      return null;
+    } on FirebaseAuthException catch (e) {
+      log('[FirebaseAuthService] signUp Firebase error: ${e.code}', error: e);
+      rethrow;
+    } catch (error, stackTrace) {
+      log(
+        '[FirebaseAuthService] signUp unexpected error: $error',
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 

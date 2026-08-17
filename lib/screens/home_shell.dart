@@ -113,7 +113,6 @@ class _MoreDrawer extends StatelessWidget {
                     const Divider(height: 1),
 
                     // You can add more "More" options below as ListTiles if needed.
-
                     if (isLoggedIn)
                       ListTile(
                         leading: const Icon(Icons.logout, color: Colors.red),
@@ -156,8 +155,10 @@ class _LoggedInDrawerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get(),
       builder: (context, snap) {
         String displayName = user.email ?? 'User';
 
@@ -173,8 +174,9 @@ class _LoggedInDrawerHeader extends StatelessWidget {
           displayName = user.displayName!;
         }
 
-        final String initial =
-            displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+        final String initial = displayName.isNotEmpty
+            ? displayName[0].toUpperCase()
+            : '?';
 
         final Widget avatar = CircleAvatar(
           radius: 28,
@@ -248,9 +250,7 @@ class _LoggedInDrawerHeader extends StatelessWidget {
 
                   // Clear stack and go to WelcomeScreen
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (_) => const WelcomeScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                     (route) => false,
                   );
                 },
@@ -304,27 +304,18 @@ class _SignInBanner extends StatelessWidget {
                 children: [
                   Text(
                     'Sign in to ClimaShield',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   SizedBox(height: 4),
                   Text(
                     'Track your impact and save your preferences.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ],
               ),
             ),
             SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.black45,
-            ),
+            Icon(Icons.chevron_right, color: Colors.black45),
           ],
         ),
       ),

@@ -393,6 +393,7 @@ class _DietQuizScreenState extends State<DietQuizScreen> {
                                 : 'Next',
                             style: const TextStyle(
                               fontSize: 16,
+
                               ///
                               /// [@var		string	fontWeight]
                               ///

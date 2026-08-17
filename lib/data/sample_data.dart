@@ -453,85 +453,85 @@ class SampleData {
   // ── Community posts ───────────────────────────────────────────────────────
 
   static List<CommunityPost> posts() => [
-        CommunityPost(
-          id: 'p1',
-          authorName: 'Mira (parent, 2 kids)',
-          body:
-              'Made the LED swap this weekend — even the laundry room. Felt instantly cheaper.',
-          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-          likes: 14,
-          tags: const ['energy', 'starter'],
-        ),
-        CommunityPost(
-          id: 'p2',
-          authorName: 'Devon',
-          body:
-              'Anyone else compost in an apartment? My countertop bin keeps fruit flies away with a tight lid.',
-          createdAt: DateTime.now().subtract(const Duration(hours: 9)),
-          likes: 6,
-          tags: const ['waste', 'question'],
-        ),
-        CommunityPost(
-          id: 'p3',
-          authorName: 'Sara',
-          body:
-              'Got the off-grid solar starter kit running. Lights and phone charging on solar now. Next step: a licensed electrician for grid-tie.',
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          likes: 22,
-          tags: const ['energy', 'diy'],
-        ),
-        CommunityPost(
-          id: 'p4',
-          authorName: 'Jen',
-          body:
-              'Called my rep about HR-xxxx. Took 90 seconds, scripted call worked great.',
-          createdAt: DateTime.now().subtract(const Duration(days: 2)),
-          likes: 31,
-          tags: const ['advocacy'],
-        ),
-        CommunityPost(
-          id: 'p5',
-          authorName: 'Marcus',
-          body:
-              'Converted half my lawn to clover this spring. Zero mowing, bees everywhere. 10/10.',
-          createdAt: DateTime.now().subtract(const Duration(days: 3)),
-          likes: 18,
-          tags: const ['biodiversity'],
-        ),
-      ];
+    CommunityPost(
+      id: 'p1',
+      authorName: 'Mira (parent, 2 kids)',
+      body:
+          'Made the LED swap this weekend — even the laundry room. Felt instantly cheaper.',
+      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+      likes: 14,
+      tags: const ['energy', 'starter'],
+    ),
+    CommunityPost(
+      id: 'p2',
+      authorName: 'Devon',
+      body:
+          'Anyone else compost in an apartment? My countertop bin keeps fruit flies away with a tight lid.',
+      createdAt: DateTime.now().subtract(const Duration(hours: 9)),
+      likes: 6,
+      tags: const ['waste', 'question'],
+    ),
+    CommunityPost(
+      id: 'p3',
+      authorName: 'Sara',
+      body:
+          'Got the off-grid solar starter kit running. Lights and phone charging on solar now. Next step: a licensed electrician for grid-tie.',
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      likes: 22,
+      tags: const ['energy', 'diy'],
+    ),
+    CommunityPost(
+      id: 'p4',
+      authorName: 'Jen',
+      body:
+          'Called my rep about HR-xxxx. Took 90 seconds, scripted call worked great.',
+      createdAt: DateTime.now().subtract(const Duration(days: 2)),
+      likes: 31,
+      tags: const ['advocacy'],
+    ),
+    CommunityPost(
+      id: 'p5',
+      authorName: 'Marcus',
+      body:
+          'Converted half my lawn to clover this spring. Zero mowing, bees everywhere. 10/10.',
+      createdAt: DateTime.now().subtract(const Duration(days: 3)),
+      likes: 18,
+      tags: const ['biodiversity'],
+    ),
+  ];
 
   // ── Petitions ─────────────────────────────────────────────────────────────
 
   static List<Petition> petitions() => [
-        const Petition(
-          id: 'pt_transit',
-          title: 'Expand bus service in our county',
-          summary:
-              'Funding for two new electric bus routes connecting low-income neighborhoods to job centers.',
-          target: 'County Transit Authority',
-          signatureGoal: 2500,
-          signatureCount: 1840,
-          tags: ['transport', 'local'],
-        ),
-        const Petition(
-          id: 'pt_solar_rights',
-          title: 'Right to install solar without HOA blocks',
-          summary:
-              'Codify a homeowner right to install rooftop or balcony solar regardless of HOA restrictions.',
-          target: 'State Legislature',
-          signatureGoal: 10000,
-          signatureCount: 6210,
-          tags: ['energy', 'policy'],
-        ),
-        const Petition(
-          id: 'pt_school_garden',
-          title: 'School garden program funding',
-          summary:
-              'Add gardening + climate literacy to K-8 curriculum with a per-school stipend.',
-          target: 'School Board',
-          signatureGoal: 1500,
-          signatureCount: 980,
-          tags: ['education', 'biodiversity'],
-        ),
-      ];
+    const Petition(
+      id: 'pt_transit',
+      title: 'Expand bus service in our county',
+      summary:
+          'Funding for two new electric bus routes connecting low-income neighborhoods to job centers.',
+      target: 'County Transit Authority',
+      signatureGoal: 2500,
+      signatureCount: 1840,
+      tags: ['transport', 'local'],
+    ),
+    const Petition(
+      id: 'pt_solar_rights',
+      title: 'Right to install solar without HOA blocks',
+      summary:
+          'Codify a homeowner right to install rooftop or balcony solar regardless of HOA restrictions.',
+      target: 'State Legislature',
+      signatureGoal: 10000,
+      signatureCount: 6210,
+      tags: ['energy', 'policy'],
+    ),
+    const Petition(
+      id: 'pt_school_garden',
+      title: 'School garden program funding',
+      summary:
+          'Add gardening + climate literacy to K-8 curriculum with a per-school stipend.',
+      target: 'School Board',
+      signatureGoal: 1500,
+      signatureCount: 980,
+      tags: ['education', 'biodiversity'],
+    ),
+  ];
 }

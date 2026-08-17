@@ -9,6 +9,7 @@ import '../models/climate_action.dart';
 import '../models/community.dart';
 import '../models/diet_entry.dart';
 import '../models/footprint.dart';
+import '../models/weekly_meal_plan.dart';
 import 'sample_data.dart';
 import '../models/carbon_calculation_record.dart';
 import '../models/diet_profile.dart';
@@ -43,6 +44,7 @@ class ClimaRepository {
   // --- In-memory caches ---
   final List<CompletedAction> _localCompleted = [];
   final List<DietLogEntry> _localDietLog = [];
+  final Map<String, WeeklyMealPlan> _localMealPlans = {};
   CarbonCalculatorInputs? _localInputs;
   CarbonFootprint? _localFootprint;
   DietProfile? _localDietProfile;
@@ -99,18 +101,20 @@ class ClimaRepository {
       log('markActionComplete remote failed: $e', name: 'ClimaRepository');
     }
   }
+
   /// Annual estimated savings from completed non-diet actions.
-  /// 
+  ///
   /// Logged recipe swaps are calculated separately from real meal records,
   /// so diet-category actions are excluded to avoid double counting.
-  
+
   Future<double> totalNonDietActionSavingsKg() async {
     final list = await completedActions();
 
     return list
-      .where((entry) => entry.category != 'diet')
-      .fold<double>(0, (total, entry) => total + entry.co2eKgSaved,);
+        .where((entry) => entry.category != 'diet')
+        .fold<double>(0, (total, entry) => total + entry.co2eKgSaved);
   }
+
   /// NEW: Returns total CO₂e saved per category, e.g. {'energy': 145.0, 'transport': 80.0}
   /// Used by the dashboard Impact Areas section.
   Future<Map<String, double>> co2eSavedByCategory() async {
@@ -566,6 +570,89 @@ class ClimaRepository {
       0,
       (total, entry) => total + entry.estimatedSavingsKg,
     );
+  }
+
+  // ----- Weekly meal plans -----
+
+  /// Returns the Monday at the start of the week containing [date].
+  DateTime _mondayFor(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+
+    return normalized.subtract(
+      Duration(days: normalized.weekday - DateTime.monday),
+    );
+  }
+
+  /// Converts a Monday date into the stable Firestore document ID format.
+  String _weekPlanId(DateTime weekStart) {
+    final year = weekStart.year.toString().padLeft(4, '0');
+    final month = weekStart.month.toString().padLeft(2, '0');
+    final day = weekStart.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  /// Loads the weekly plan that contains [date].
+  Future<WeeklyMealPlan?> loadWeeklyMealPlan({DateTime? date}) async {
+    final weekStart = _mondayFor(date ?? DateTime.now());
+    final planId = _weekPlanId(weekStart);
+
+    if (!isRemoteAvailable) {
+      return _localMealPlans[planId];
+    }
+
+    try {
+      final document = await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('mealPlans')
+          .doc(planId)
+          .get();
+
+      if (!document.exists) {
+        return _localMealPlans[planId];
+      }
+
+      final plan = WeeklyMealPlan.fromMap(
+        document.data() ?? <String, dynamic>{},
+        id: document.id,
+      );
+
+      _localMealPlans[planId] = plan;
+
+      return plan;
+    } catch (error) {
+      log('loadWeeklyMealPlan failed: $error', name: 'ClimaRepository');
+
+      return _localMealPlans[planId];
+    }
+  }
+
+  /// Saves one personal weekly meal plan.
+  ///
+  /// The caller supplies a Monday-based [WeeklyMealPlan.id], such as
+  /// `2026-08-10`.
+  Future<bool> saveWeeklyMealPlan(WeeklyMealPlan plan) async {
+    _localMealPlans[plan.id] = plan;
+
+    if (!isRemoteAvailable) {
+      return true;
+    }
+
+    try {
+      await _db!
+          .collection('users')
+          .doc(_uid)
+          .collection('mealPlans')
+          .doc(plan.id)
+          .set(plan.toMap());
+
+      return true;
+    } catch (error) {
+      log('saveWeeklyMealPlan failed: $error', name: 'ClimaRepository');
+
+      return false;
+    }
   }
 
   // ----- Community -----

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../data/repository.dart';
+import '../data/recipe_repository.dart';
+
 import '../models/footprint.dart';
+import '../models/climate_action.dart';
+import '../models/community.dart';
+import '../models/recipe_model.dart';
+
+import 'community_screen.dart';
+import 'recipe_detail_screen.dart';
 import 'actions_screen.dart';
-import 'calculator_screen.dart';
 import 'diet_screen.dart';
-import 'petitions_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +29,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, double> _savedByCategory = {};
   bool _loading = true;
 
+  List<CommunityPost> _communityPosts = const [];
+  List<Recipe> _recipeIdeas = const [];
+
   @override
   void initState() {
     super.initState();
@@ -36,32 +45,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ClimaRepository.instance.totalNonDietActionSavingsKg(),
       ClimaRepository.instance.co2eSavedByCategory(),
       ClimaRepository.instance.totalDietSavingsKg(),
+      ClimaRepository.instance.communityPosts(),
+      RecipeRepository.instance.loadAllRecipes(),
     ]);
     if (!mounted) return;
-    
+
     final footprint = results[0] as CarbonFootprint?;
     final nonDietActionSavings = results[1] as double;
     final savedByCategory = results[2] as Map<String, double>;
     final loggedDietSavings = results[3] as double;
+    final communityPosts = {
+      results[4] as List,
+    }.whereType<CommunityPost>().take(2).toList();
+
+    final recipeIdeas = (results[5] as List)
+        .whereType<Recipe>()
+        .take(2)
+        .toList();
 
     //A user cannot avoid more diet emissions than exist in the originial
     // 12-month diet baseline projection
     final dietBaselineKg = footprint?.dietKg ?? 0;
-    final appliedDietSavings = loggedDietSavings.clamp(0.0, dietBaselineKg).toDouble();
+    final appliedDietSavings = loggedDietSavings
+        .clamp(0.0, dietBaselineKg)
+        .toDouble();
 
     setState(() {
-      _footprint= footprint;
+      _footprint = footprint;
       _dietSavings = loggedDietSavings;
       _appliedDietSavings = appliedDietSavings;
       _saved = nonDietActionSavings + appliedDietSavings;
       _savedByCategory = savedByCategory;
       _loading = false;
+      _communityPosts = communityPosts;
+      _recipeIdeas = recipeIdeas;
     });
   }
 
   void _open(Widget page) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page))
-        .then((_) => _load());
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    ).then((_) => _load());
   }
 
   // CHANGE: helper that builds a human-readable subtitle from real category kg
@@ -101,7 +126,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-
                   // Hero image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -117,8 +141,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Center(
-                          child: Icon(Icons.public,
-                              size: 64, color: Color(0xFF4CAF50)),
+                          child: Icon(
+                            Icons.public,
+                            size: 64,
+                            color: Color(0xFF4CAF50),
+                          ),
                         ),
                       ),
                     ),
@@ -208,19 +235,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _ImpactCard(
                     title: 'Diet Impact',
                     subtitle: _dietSavings == 0
-                      ? 'Log recipes and smart outside meals to reduce your 12-month projection'
-                      : '${_appliedDietSavings.toStringAsFixed(1)} kg CO₂e '
-                        'estimated from logged meal swaps',
-                    imageUrl: 'assets/images/diet.png', 
+                        ? 'Log recipes and smart outside meals to reduce your 12-month projection'
+                        : '${_appliedDietSavings.toStringAsFixed(1)} kg CO₂e '
+                              'estimated from logged meal swaps',
+                    imageUrl: 'assets/images/diet.png',
                     savedKg: _appliedDietSavings,
                     onTap: () => _open(const DietScreen()),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // ── Quick actions grid ────────────────────────────────────
+                  // ── Today for you ─────────────────────────────────────────
                   const Text(
-                    'Get Started',
+                    'Today for you',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -229,32 +254,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _QuickGrid(items: [
-                    _Quick(
-                      icon: Icons.calculate_outlined,
-                      title: 'Carbon calculator',
-                      subtitle: 'Estimate your annual footprint',
-                      onTap: () => _open(const CalculatorScreen()),
-                    ),
-                    _Quick(
-                      icon: Icons.eco_outlined,
-                      title: 'Take an action',
-                      subtitle: 'High-impact, low-friction',
-                      onTap: () => _open(const ActionsScreen()),
-                    ),
-                    _Quick(
-                      icon: Icons.restaurant_outlined,
-                      title: 'Log a meal',
-                      subtitle: 'Climate-friendly diet',
+
+                  _DashboardFeatureCard(
+                    icon: Icons.restaurant_outlined,
+                    title: 'Find meals that fit your lifestyle',
+                    subtitle:
+                        'Explore climate-friendly recipes, take the diet quiz, and track meal-swap savings.',
+                    buttonLabel: 'Explore recipes',
+                    onTap: () => _open(const DietScreen()),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Recipe ideas ──────────────────────────────────────────
+                  _SectionHeader(
+                    title: 'Recipe ideas',
+                    actionLabel: 'See all',
+                    onActionTap: () => _open(const DietScreen()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (_recipeIdeas.isEmpty)
+                    _EmptyPreviewCard(
+                      icon: Icons.menu_book_outlined,
+                      message:
+                          'Recipe ideas will appear here once they are available.',
                       onTap: () => _open(const DietScreen()),
+                    )
+                  else
+                    ..._recipeIdeas.map(
+                      (recipe) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _RecipePreviewCard(
+                          recipe: recipe,
+                          onTap: () =>
+                              _open(RecipeDetailScreen(recipe: recipe)),
+                        ),
+                      ),
                     ),
-                    _Quick(
-                      icon: Icons.campaign_outlined,
-                      title: 'Sign a petition',
-                      subtitle: 'Local advocacy',
-                      onTap: () => _open(const PetitionsScreen()),
+
+                  const SizedBox(height: 24),
+
+                  // ── Recommended action ────────────────────────────────────
+                  _SectionHeader(
+                    title: 'Recommended action',
+                    actionLabel: 'Browse actions',
+                    onActionTap: () => _open(const ActionsScreen()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _RecommendedActionCard(
+                    action: ClimaRepository.instance
+                        .allActions()
+                        .whereType<ClimateAction>()
+                        .firstWhere(
+                          (action) => action.isMvpAction,
+                          orElse: () => ClimaRepository.instance
+                              .allActions()
+                              .whereType<ClimateAction>()
+                              .first,
+                        ),
+                    onTap: () => _open(const ActionsScreen()),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Community snapshot ────────────────────────────────────
+                  _SectionHeader(
+                    title: 'Community',
+                    actionLabel: 'View feed',
+                    onActionTap: () => _open(const CommunityScreen()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (_communityPosts.isEmpty)
+                    _EmptyPreviewCard(
+                      icon: Icons.people_outline,
+                      message: 'Community posts will appear here soon.',
+                      onTap: () => _open(const CommunityScreen()),
+                    )
+                  else
+                    ..._communityPosts.map(
+                      (post) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _CommunityPreviewCard(
+                          post: post,
+                          onTap: () => _open(const CommunityScreen()),
+                        ),
+                      ),
                     ),
-                  ]),
+
+                  const SizedBox(height: 24),
+
+                  // ── Future content API area ───────────────────────────────
+                  const Text(
+                    'Climate updates',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontFamily: 'Manrope',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  const _ClimateUpdatesPlaceholder(),
 
                   const SizedBox(height: 32),
                 ]),
@@ -286,8 +390,7 @@ class _SurplusCard extends StatelessWidget {
     final net = fpKg - savedKg;
     final isSurplus = net < 0 && fpKg > 0;
     final isNeutral = net == 0 && fpKg > 0;
-    final double progress =
-        fpKg > 0 ? (savedKg / fpKg).clamp(0.0, 1.0) : 0.0;
+    final double progress = fpKg > 0 ? (savedKg / fpKg).clamp(0.0, 1.0) : 0.0;
 
     String headline;
     String message;
@@ -473,9 +576,13 @@ class _ImpactCard extends StatelessWidget {
                       Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF4CAF50,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -529,45 +636,335 @@ class _ImpactCard extends StatelessWidget {
         color: const Color(0xFF2B3D35),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Icon(Icons.image_outlined,
-          color: Color(0xFF4CAF50), size: 28),
+      child: const Icon(
+        Icons.image_outlined,
+        color: Color(0xFF4CAF50),
+        size: 28,
+      ),
     );
   }
 }
 
-// ── Quick Grid (unchanged) ───────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String actionLabel;
+  final VoidCallback onActionTap;
 
-class _QuickGrid extends StatelessWidget {
-  final List<_Quick> items;
-  const _QuickGrid({required this.items});
+  const _SectionHeader({
+    required this.title,
+    required this.actionLabel,
+    required this.onActionTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = c.maxWidth > 540 ? 3 : 2;
-      return GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: cols,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.2,
-        children: items,
-      );
-    });
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontFamily: 'Manrope',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        TextButton(onPressed: onActionTap, child: Text(actionLabel)),
+      ],
+    );
   }
 }
 
-class _Quick extends StatelessWidget {
+class _DashboardFeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String buttonLabel;
   final VoidCallback onTap;
 
-  const _Quick({
+  const _DashboardFeatureCard({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.buttonLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2320),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.18),
+            child: Icon(icon, color: const Color(0xFF4CAF50)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Manrope',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFFA3B2AA),
+                    fontFamily: 'Manrope',
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(onPressed: onTap, child: Text(buttonLabel)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecipePreviewCard extends StatelessWidget {
+  final Recipe recipe;
+  final VoidCallback onTap;
+
+  const _RecipePreviewCard({required this.recipe, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = recipe.mealTypes.isNotEmpty
+        ? recipe.mealTypes.first
+        : 'Recipe idea';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A2320),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2B3D35),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.restaurant_menu,
+                  color: Color(0xFF4CAF50),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recipe.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      recipe.prepTimeMinutes > 0
+                          ? '$label • ${recipe.prepTimeMinutes} min prep'
+                          : label,
+                      style: const TextStyle(
+                        color: Color(0xFFA3B2AA),
+                        fontFamily: 'Manrope',
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFA3B2AA)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecommendedActionCard extends StatelessWidget {
+  final ClimateAction action;
+  final VoidCallback onTap;
+
+  const _RecommendedActionCard({required this.action, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A2320),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: Color(0xFF2B3D35),
+                child: Icon(Icons.eco_outlined, color: Color(0xFF4CAF50)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      action.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFA3B2AA),
+                        fontFamily: 'Manrope',
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFA3B2AA)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityPreviewCard extends StatelessWidget {
+  final CommunityPost post;
+  final VoidCallback onTap;
+
+  const _CommunityPreviewCard({required this.post, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = post.authorName.isEmpty
+        ? '?'
+        : post.authorName.substring(0, 1).toUpperCase();
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A2320),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: const Color(0xFF2B3D35),
+                child: Text(
+                  initial,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.authorName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      post.body,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFA3B2AA),
+                        fontFamily: 'Manrope',
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${post.likes} likes',
+                      style: const TextStyle(
+                        color: Color(0xFF4CAF50),
+                        fontFamily: 'Manrope',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPreviewCard extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final VoidCallback onTap;
+
+  const _EmptyPreviewCard({
+    required this.icon,
+    required this.message,
     required this.onTap,
   });
 
@@ -577,41 +974,63 @@ class _Quick extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: const Color(0xFF1A2320),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF4CAF50), size: 28),
-              const Spacer(),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Manrope',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+              Icon(icon, color: const Color(0xFF4CAF50)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFFA3B2AA),
+                    fontFamily: 'Manrope',
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Color(0xFFA3B2AA),
-                  fontSize: 12,
-                  fontFamily: 'Manrope',
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFA3B2AA)),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ClimateUpdatesPlaceholder extends StatelessWidget {
+  const _ClimateUpdatesPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2320),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2B3D35)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.newspaper_outlined, color: Color(0xFF64B5F6)),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Climate news, technology updates, and learning resources '
+              'will appear here from curated sources.',
+              style: TextStyle(
+                color: Color(0xFFA3B2AA),
+                fontFamily: 'Manrope',
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

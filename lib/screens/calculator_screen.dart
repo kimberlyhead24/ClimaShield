@@ -61,7 +61,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _kwh,
       _therms,
       _household,
-      _shopping
+      _shopping,
     ]) {
       c.dispose();
     }
@@ -87,13 +87,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() => _result = fp);
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    log('_calculate(): uid=$uid, isRemoteAvailable=${ClimaRepository.instance.isRemoteAvailable}', name: 'CalculatorScreen');
-        
+    log(
+      '_calculate(): uid=$uid, isRemoteAvailable=${ClimaRepository.instance.isRemoteAvailable}',
+      name: 'CalculatorScreen',
+    );
+
     await ClimaRepository.instance.saveCalculation(inputs, fp);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved your footprint.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Saved your footprint.')));
     }
   }
 
@@ -136,10 +139,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               initialValue: _dietType,
               decoration: climaInputDecoration('Diet pattern'),
               items: const [
-                DropdownMenuItem(value: 'meat_heavy', child: Text('Meat-heavy')),
+                DropdownMenuItem(
+                  value: 'meat_heavy',
+                  child: Text('Meat-heavy'),
+                ),
                 DropdownMenuItem(value: 'average', child: Text('Average')),
                 DropdownMenuItem(value: 'low_meat', child: Text('Low meat')),
-                DropdownMenuItem(value: 'vegetarian', child: Text('Vegetarian')),
+                DropdownMenuItem(
+                  value: 'vegetarian',
+                  child: Text('Vegetarian'),
+                ),
                 DropdownMenuItem(value: 'vegan', child: Text('Vegan')),
               ],
               onChanged: (v) => setState(() => _dietType = v ?? 'average'),
@@ -170,10 +179,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _numField(TextEditingController c, String label) => TextField(
-        controller: c,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: climaInputDecoration(label),
-      );
+    controller: c,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    decoration: climaInputDecoration(label),
+  );
 }
 
 class _ResultCard extends StatelessWidget {
@@ -191,8 +200,10 @@ class _ResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${footprint.totalTonnes.toStringAsFixed(1)} t CO₂e / year',
-              style: ClimaText.headline),
+          Text(
+            '${footprint.totalTonnes.toStringAsFixed(1)} t CO₂e / year',
+            style: ClimaText.headline,
+          ),
           const SizedBox(height: 8),
           _bar('Transport', footprint.transportKg, footprint.totalKg),
           _bar('Home energy', footprint.homeEnergyKg, footprint.totalKg),
@@ -210,10 +221,13 @@ class _ResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(label, style: ClimaText.body),
-            Text('${kg.toStringAsFixed(0)} kg', style: ClimaText.muted),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: ClimaText.body),
+              Text('${kg.toStringAsFixed(0)} kg', style: ClimaText.muted),
+            ],
+          ),
           const SizedBox(height: 4),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),

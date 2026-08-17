@@ -101,26 +101,30 @@ class _PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            CircleAvatar(
-              backgroundColor: ClimaColors.surface,
-              child: Text(
-                post.authorName.characters.first.toUpperCase(),
-                style: const TextStyle(color: ClimaColors.ink),
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: ClimaColors.surface,
+                child: Text(
+                  post.authorName.characters.first.toUpperCase(),
+                  style: const TextStyle(color: ClimaColors.ink),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(post.authorName,
-                      style: ClimaText.title.copyWith(fontSize: 14)),
-                  Text(_relative(post.createdAt), style: ClimaText.muted),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.authorName,
+                      style: ClimaText.title.copyWith(fontSize: 14),
+                    ),
+                    Text(_relative(post.createdAt), style: ClimaText.muted),
+                  ],
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 10),
           Text(post.body, style: ClimaText.body),
           if (post.tags.isNotEmpty) ...[
@@ -130,8 +134,10 @@ class _PostCard extends StatelessWidget {
               children: [
                 for (final t in post.tags)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: ClimaColors.surface,
                       borderRadius: BorderRadius.circular(20),
@@ -142,14 +148,18 @@ class _PostCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          Row(children: [
-            TextButton.icon(
-              onPressed: onLike,
-              icon: const Icon(Icons.favorite_border, size: 18),
-              label: Text('${post.likes}'),
-              style: TextButton.styleFrom(foregroundColor: ClimaColors.accent),
-            ),
-          ]),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: onLike,
+                icon: const Icon(Icons.favorite_border, size: 18),
+                label: Text('${post.likes}'),
+                style: TextButton.styleFrom(
+                  foregroundColor: ClimaColors.accent,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -189,7 +199,9 @@ class _NewPostSheetState extends State<_NewPostSheet> {
     setState(() => _saving = true);
     final post = await ClimaRepository.instance.createPost(
       _body.text.trim(),
-      authorName: _name.text.trim().isEmpty ? 'ClimaShield user' : _name.text.trim(),
+      authorName: _name.text.trim().isEmpty
+          ? 'ClimaShield user'
+          : _name.text.trim(),
       tags: _tags.text
           .split(',')
           .map((t) => t.trim().replaceAll('#', ''))

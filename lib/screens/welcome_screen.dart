@@ -26,7 +26,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Content Section
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -59,7 +59,12 @@ class WelcomeScreen extends StatelessWidget {
                   _buildButton(
                     text: "I'm a Business",
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const BusinessSignUpScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BusinessSignUpScreen(),
+                        ),
+                      );
                     },
                     isPrimary: true,
                   ),
@@ -67,7 +72,12 @@ class WelcomeScreen extends StatelessWidget {
                   _buildButton(
                     text: "I'm a Personal User",
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalSignUpScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PersonalSignUpScreen(),
+                        ),
+                      );
                     },
                     isPrimary: false,
                   ),
@@ -76,7 +86,12 @@ class WelcomeScreen extends StatelessWidget {
                   // Login Link
                   TextButton(
                     onPressed: () {
-                       Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       'Already have an account? Log in',
@@ -113,13 +128,19 @@ class WelcomeScreen extends StatelessWidget {
   }
 
   // Helper method to build styled buttons
-  Widget _buildButton({required String text, required VoidCallback onPressed, required bool isPrimary}) {
+  Widget _buildButton({
+    required String text,
+    required VoidCallback onPressed,
+    required bool isPrimary,
+  }) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? const Color(0xFF93E0B2) : const Color(0xFFE8F2ED),
+          backgroundColor: isPrimary
+              ? const Color(0xFF93E0B2)
+              : const Color(0xFFE8F2ED),
           foregroundColor: const Color(0xFF0F1914),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

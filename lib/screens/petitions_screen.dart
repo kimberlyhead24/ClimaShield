@@ -35,13 +35,16 @@ class _PetitionsScreenState extends State<PetitionsScreen> {
     if (!mounted) return;
     setState(() {
       _items = _items
-          .map((q) =>
-              q.id == p.id ? q.copyWith(signatureCount: q.signatureCount + 1) : q)
+          .map(
+            (q) => q.id == p.id
+                ? q.copyWith(signatureCount: q.signatureCount + 1)
+                : q,
+          )
           .toList();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Signed: ${p.title}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Signed: ${p.title}')));
   }
 
   @override
@@ -65,7 +68,12 @@ class _PetitionsScreenState extends State<PetitionsScreen> {
             ),
             const SizedBox(height: 12),
             if (_loading) const LinearProgressIndicator(minHeight: 3),
-            for (final p in _items) _PetitionCard(petition: p, onSign: () => _sign(p), signed: ClimaRepository.instance.hasSigned(p.id)),
+            for (final p in _items)
+              _PetitionCard(
+                petition: p,
+                onSign: () => _sign(p),
+                signed: ClimaRepository.instance.hasSigned(p.id),
+              ),
           ],
         ),
       ),
@@ -77,7 +85,11 @@ class _PetitionCard extends StatelessWidget {
   final Petition petition;
   final VoidCallback onSign;
   final bool signed;
-  const _PetitionCard({required this.petition, required this.onSign, required this.signed});
+  const _PetitionCard({
+    required this.petition,
+    required this.onSign,
+    required this.signed,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -21,7 +21,9 @@ class TemplateResolver {
         .replaceAll('{location}', '${data['state']}')
         .replaceAll('{peak_sun_hours}', '${data['peak_sun_hours']}')
         .replaceAll('{annual_kwh}', '${data['annual_kwh']}')
-        .replaceAll('{co2e_reduction_per_year_kg}',
-            '${data['co2e_reduction_per_year_kg']}');
+        .replaceAll(
+          '{co2e_reduction_per_year_kg}',
+          '${data['co2e_reduction_per_year_kg']}',
+        );
   }
 }

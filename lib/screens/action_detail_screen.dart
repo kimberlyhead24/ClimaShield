@@ -93,8 +93,11 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                   pinned: false,
                   floating: true,
                   leading: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   title: const SizedBox.shrink(),
@@ -138,7 +141,8 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                               child: _StatTile(
                                 label: 'Impact',
                                 value: _impactLabel(
-                                    a.impactScore.co2eReductionPerYearKg),
+                                  a.impactScore.co2eReductionPerYearKg,
+                                ),
                                 icon: Icons.bolt_rounded,
                                 iconColor: const Color(0xFF8CD177),
                               ),
@@ -202,8 +206,7 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                                 spacing: 8,
                                 runSpacing: 6,
                                 children: a.environmentalImpactAreas
-                                    .map((area) =>
-                                        _ImpactAreaChip(label: area))
+                                    .map((area) => _ImpactAreaChip(label: area))
                                     .toList(),
                               ),
                             ],
@@ -220,7 +223,8 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                               color: const Color(0xFF0D1F2D),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: const Color(0xFF1A4A6B)),
+                                color: const Color(0xFF1A4A6B),
+                              ),
                             ),
                             child: Row(
                               children: [
@@ -286,14 +290,17 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                               color: Colors.orange.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: Colors.orange
-                                      .withValues(alpha: 0.35)),
+                                color: Colors.orange.withValues(alpha: 0.35),
+                              ),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.shield_outlined,
-                                    color: Colors.orange, size: 18),
+                                const Icon(
+                                  Icons.shield_outlined,
+                                  color: Colors.orange,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -327,16 +334,14 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                           ),
                         ),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             children: [
-                              for (int i = 0;
-                                  i < a.stepByStepGuide.length;
-                                  i++)
+                              for (int i = 0; i < a.stepByStepGuide.length; i++)
                                 _StepRow(
-                                    number: i + 1,
-                                    text: a.stepByStepGuide[i]),
+                                  number: i + 1,
+                                  text: a.stepByStepGuide[i],
+                                ),
                             ],
                           ),
                         ),
@@ -376,8 +381,8 @@ class _ActionDetailScreenState extends State<ActionDetailScreen> {
                     _saving
                         ? 'Saving...'
                         : _alreadyDone
-                            ? '✓ Added to My Actions'
-                            : 'Add to My Actions',
+                        ? '✓ Added to My Actions'
+                        : 'Add to My Actions',
                     style: TextStyle(
                       fontSize: 16,
                       fontFamily: 'Manrope',
@@ -425,8 +430,10 @@ class _HeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heroHeight =
-        (MediaQuery.of(context).size.height * 0.28).clamp(200.0, 320.0);
+    final heroHeight = (MediaQuery.of(context).size.height * 0.28).clamp(
+      200.0,
+      320.0,
+    );
 
     Widget imageWidget;
 
@@ -445,28 +452,26 @@ class _HeroImage extends StatelessWidget {
     }
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        bottom: Radius.circular(16),
-      ),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
       child: imageWidget,
     );
   }
 
   Widget _assetImage(ClimateAction a, double height) => Image.asset(
-        a.primaryCategory.imageAsset,
-        width: double.infinity,
-        height: height,
-        fit: BoxFit.cover,
-        // ✅ Fixed: use distinct parameter names instead of repeated _
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: double.infinity,
-          height: height,
-          color: const Color(0xFF1A2320),
-          child: const Center(
-            child: Icon(Icons.eco, color: Color(0xFF4CAF50), size: 56),
-          ),
-        ),
-      );
+    a.primaryCategory.imageAsset,
+    width: double.infinity,
+    height: height,
+    fit: BoxFit.cover,
+    // ✅ Fixed: use distinct parameter names instead of repeated _
+    errorBuilder: (context, error, stackTrace) => Container(
+      width: double.infinity,
+      height: height,
+      color: const Color(0xFF1A2320),
+      child: const Center(
+        child: Icon(Icons.eco, color: Color(0xFF4CAF50), size: 56),
+      ),
+    ),
+  );
 }
 
 // ── Category chip ─────────────────────────────────────────────────────────────
@@ -483,7 +488,8 @@ class _CategoryChip extends StatelessWidget {
         color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
+        ),
       ),
       child: Text(
         label,
@@ -533,11 +539,12 @@ class _StatTile extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color iconColor;
-  const _StatTile(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.iconColor});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -591,36 +598,44 @@ class _ImpactMetricsRow extends StatelessWidget {
     final metrics = <_Metric>[];
 
     if (score.co2eReductionPerYearKg > 0) {
-      metrics.add(_Metric(
-        icon: Icons.cloud_outlined,
-        color: const Color(0xFF8CD177),
-        value: '${score.co2eReductionPerYearKg.toStringAsFixed(0)} kg',
-        label: 'CO₂e/yr saved',
-      ));
+      metrics.add(
+        _Metric(
+          icon: Icons.cloud_outlined,
+          color: const Color(0xFF8CD177),
+          value: '${score.co2eReductionPerYearKg.toStringAsFixed(0)} kg',
+          label: 'CO₂e/yr saved',
+        ),
+      );
     }
     if (score.waterSavedGallons > 0) {
-      metrics.add(_Metric(
-        icon: Icons.water_drop_outlined,
-        color: const Color(0xFF5BB8FF),
-        value: '${score.waterSavedGallons.toStringAsFixed(0)} gal',
-        label: 'Water saved/yr',
-      ));
+      metrics.add(
+        _Metric(
+          icon: Icons.water_drop_outlined,
+          color: const Color(0xFF5BB8FF),
+          value: '${score.waterSavedGallons.toStringAsFixed(0)} gal',
+          label: 'Water saved/yr',
+        ),
+      );
     }
     if (score.wasteDivertedKg > 0) {
-      metrics.add(_Metric(
-        icon: Icons.delete_outline_rounded,
-        color: const Color(0xFFFFC857),
-        value: '${score.wasteDivertedKg.toStringAsFixed(0)} kg',
-        label: 'Waste diverted/yr',
-      ));
+      metrics.add(
+        _Metric(
+          icon: Icons.delete_outline_rounded,
+          color: const Color(0xFFFFC857),
+          value: '${score.wasteDivertedKg.toStringAsFixed(0)} kg',
+          label: 'Waste diverted/yr',
+        ),
+      );
     }
     if (score.pollinatorHabitatSqFt > 0) {
-      metrics.add(_Metric(
-        icon: Icons.local_florist_outlined,
-        color: const Color(0xFFFF9ECD),
-        value: '${score.pollinatorHabitatSqFt.toStringAsFixed(0)} ft²',
-        label: 'Pollinator habitat',
-      ));
+      metrics.add(
+        _Metric(
+          icon: Icons.local_florist_outlined,
+          color: const Color(0xFFFF9ECD),
+          value: '${score.pollinatorHabitatSqFt.toStringAsFixed(0)} ft²',
+          label: 'Pollinator habitat',
+        ),
+      );
     }
 
     if (metrics.isEmpty) return const SizedBox.shrink();
@@ -648,11 +663,12 @@ class _Metric {
   final Color color;
   final String value;
   final String label;
-  const _Metric(
-      {required this.icon,
-      required this.color,
-      required this.value,
-      required this.label});
+  const _Metric({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
 }
 
 class _MetricCell extends StatelessWidget {
@@ -712,7 +728,8 @@ class _StepRow extends StatelessWidget {
               color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
+                color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
+              ),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -796,8 +813,11 @@ class _ScienceModal extends StatelessWidget {
                           color: const Color(0xFF1A4A6B),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.science_outlined,
-                            color: Color(0xFF5BB8FF), size: 22),
+                        child: const Icon(
+                          Icons.science_outlined,
+                          color: Color(0xFF5BB8FF),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -878,25 +898,30 @@ class _ScienceModal extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: environmentalImpactAreas
-                          .map((area) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF111D2B),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: const Color(0xFF1A4A6B)),
+                          .map(
+                            (area) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF111D2B),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF1A4A6B),
                                 ),
-                                child: Text(
-                                  area,
-                                  style: const TextStyle(
-                                    color: Color(0xFF5BB8FF),
-                                    fontFamily: 'Manrope',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              ),
+                              child: Text(
+                                area,
+                                style: const TextStyle(
+                                  color: Color(0xFF5BB8FF),
+                                  fontFamily: 'Manrope',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                              ))
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(height: 24),
@@ -918,8 +943,10 @@ class _ScienceModal extends StatelessWidget {
                       onTap: () async {
                         final uri = Uri.tryParse(sourceLink);
                         if (uri != null && await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       },
                       child: Container(
@@ -927,13 +954,15 @@ class _ScienceModal extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF111D2B),
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: const Color(0xFF1A4A6B)),
+                          border: Border.all(color: const Color(0xFF1A4A6B)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.link_rounded,
-                                color: Color(0xFF5BB8FF), size: 18),
+                            const Icon(
+                              Icons.link_rounded,
+                              color: Color(0xFF5BB8FF),
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -949,8 +978,11 @@ class _ScienceModal extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Icon(Icons.open_in_new_rounded,
-                                color: Color(0xFF5BB8FF), size: 14),
+                            const Icon(
+                              Icons.open_in_new_rounded,
+                              color: Color(0xFF5BB8FF),
+                              size: 14,
+                            ),
                           ],
                         ),
                       ),

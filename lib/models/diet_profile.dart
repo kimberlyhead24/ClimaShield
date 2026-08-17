@@ -70,7 +70,7 @@ class DietProfile {
   /// Null means the user chose not to provide a budget.
   final double? weeklyFoodBudgetUsd;
 
-  /// The user's preferred change pace: 'gradual', 'steady', or 'all_in'.
+  /// The user's preferred change pace: 'gradual', 'steady', or 'allIn'.
   final String transitionPace;
 
   /// The most recent time the profile was saved or updated.

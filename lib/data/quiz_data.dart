@@ -236,7 +236,7 @@ final List<Question> dietQuiz = [
       ),
       Option(
         text: 'All in',
-        value: 'all_in',
+        value: 'allIn',
         description: 'I am ready for major climate-diet changes now.',
       ),
     ],

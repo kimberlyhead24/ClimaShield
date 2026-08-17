@@ -186,8 +186,11 @@ class Recipe {
 
   final String difficulty;
   final int prepTimeMinutes;
+  final int totalTimeMinutes;
   final int servings;
   final String costEstimate;
+  final double? estimatedCostUsdTotal;
+  final double? estimatedCostUsdPerServing;
   final bool isMvpRecipe;
   final String? videoTutorialUrl;
 
@@ -212,8 +215,11 @@ class Recipe {
     this.allergens = const [],
     this.difficulty = 'Easy',
     this.prepTimeMinutes = 0,
+    this.totalTimeMinutes = 0,
     this.servings = 1,
     this.costEstimate = '',
+    this.estimatedCostUsdTotal,
+    this.estimatedCostUsdPerServing,
     this.isMvpRecipe = false,
     this.videoTutorialUrl,
     List<RecipeIngredient>? ingredientDetails,
@@ -268,6 +274,32 @@ class Recipe {
     return null;
   }
 
+  bool get hasCostEstimate {
+    return estimatedCostUsdTotal != null &&
+        estimatedCostUsdTotal! >= 0 &&
+        servings > 0;
+  }
+
+  double? get effectiveCostPerServing {
+    if (estimatedCostUsdPerServing != null) {
+      return estimatedCostUsdPerServing;
+    }
+
+    if (!hasCostEstimate) {
+      return null;
+    }
+
+    return estimatedCostUsdTotal! / servings;
+  }
+
+  int get effectiveTotalTimeMinutes {
+    if (totalTimeMinutes > 0) {
+      return totalTimeMinutes;
+    }
+
+    return prepTimeMinutes;
+  }
+
   factory Recipe.fromMap(Map<String, dynamic> map, {String id = ''}) {
     final rawIngredients = map['ingredients'];
     final rawInstructions = map['step_by_step_guide'];
@@ -303,8 +335,12 @@ class Recipe {
       allergens: List<String>.from(map['allergens'] as List? ?? const []),
       difficulty: map['difficulty'] as String? ?? 'Easy',
       prepTimeMinutes: (map['prep_time_minutes'] as num?)?.toInt() ?? 0,
+      totalTimeMinutes: (map['total_time_minutes'] as num?)?.toInt() ?? 0,
       servings: (map['servings'] as num?)?.toInt() ?? 1,
       costEstimate: map['cost_estimate'] as String? ?? '',
+      estimatedCostUsdTotal: (map['estimatedCostUsdTotal'] as num?)?.toDouble(),
+      estimatedCostUsdPerServing: (map['estimatedCostUsdPerServing'] as num?)
+          ?.toDouble(),
       isMvpRecipe: map['is_mvp_recipe'] as bool? ?? false,
       videoTutorialUrl: map['video_tutorial_url'] as String?,
       ingredientDetails: ingredients,
@@ -327,8 +363,11 @@ class Recipe {
       'allergens': allergens,
       'difficulty': difficulty,
       'prep_time_minutes': prepTimeMinutes,
+      'total_time_minutes': totalTimeMinutes,
       'servings': servings,
       'cost_estimate': costEstimate,
+      'estimatedCostUsdTotal': estimatedCostUsdTotal,
+      'estimatedCostUsdPerServing': estimatedCostUsdPerServing,
       'is_mvp_recipe': isMvpRecipe,
       'video_tutorial_url': videoTutorialUrl,
       'ingredients': ingredientDetails

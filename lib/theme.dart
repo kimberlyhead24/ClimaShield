@@ -42,20 +42,18 @@ ButtonStyle climaPrimaryButtonStyle({bool primary = true}) =>
       backgroundColor: primary ? ClimaColors.primary : ClimaColors.surface,
       foregroundColor: ClimaColors.ink,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
     );
 
 InputDecoration climaInputDecoration(String hint) => InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: ClimaColors.inkSoft),
-      filled: true,
-      fillColor: ClimaColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-    );
+  hintText: hint,
+  hintStyle: const TextStyle(color: ClimaColors.inkSoft),
+  filled: true,
+  fillColor: ClimaColors.surface,
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide.none,
+  ),
+  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+);

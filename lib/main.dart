@@ -45,7 +45,7 @@ class ClimaShieldApp extends StatelessWidget {
       routes: {
         '/home': (_) => const HomeShell(),
         '/welcome': (_) => const WelcomeScreen(),
-      }
+      },
     );
   }
 }

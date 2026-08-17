@@ -22,16 +22,19 @@ class CarbonFactors {
 CarbonFootprint computeFootprint(CarbonCalculatorInputs i) {
   final weeklyGallons = i.carMpg <= 0 ? 0 : i.carMilesPerWeek / i.carMpg;
   final carKg = weeklyGallons * 52 * CarbonFactors.kgCO2ePerGallonGasoline;
-  final flightKg = i.flightsShortHaulPerYear * CarbonFactors.kgCO2eShortHaulFlight +
+  final flightKg =
+      i.flightsShortHaulPerYear * CarbonFactors.kgCO2eShortHaulFlight +
       i.flightsLongHaulPerYear * CarbonFactors.kgCO2eLongHaulFlight;
   final transportKg = carKg + flightKg;
 
   final household = i.householdSize <= 0 ? 1 : i.householdSize;
-  final electricKg = i.electricityKwhPerMonth *
+  final electricKg =
+      i.electricityKwhPerMonth *
       12 *
       CarbonFactors.kgCO2ePerKwhUsAvg /
       household;
-  final gasKg = i.naturalGasThermsPerMonth *
+  final gasKg =
+      i.naturalGasThermsPerMonth *
       12 *
       CarbonFactors.kgCO2ePerThermNaturalGas /
       household;
