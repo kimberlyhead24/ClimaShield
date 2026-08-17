@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - feature/diet-quiz-flow
   pull_request:
     branches:
       - main
