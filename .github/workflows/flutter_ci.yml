@@ -1,0 +1,40 @@
+name: Flutter CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/diet-quiz-flow
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    name: Analyze and Test Flutter App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.32.8
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Run static analysis
+        run: flutter analyze
+
+      - name: Run unit and widget tests
+        run: flutter test
