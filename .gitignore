@@ -1,7 +1,7 @@
 # Configuration
 lib/json/firebase-key.json
 lib/json/serviceAccountKey.json
-
+output/
 # Miscellaneous
 *.class
 *.log
