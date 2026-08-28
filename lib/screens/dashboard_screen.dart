@@ -11,7 +11,8 @@ import '../models/recipe_model.dart';
 import 'community_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'actions_screen.dart';
-import 'diet_screen.dart';
+import 'meal_plan_screen.dart';
+import 'diet_onboarding_gate.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -31,11 +32,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<CommunityPost> _communityPosts = const [];
   List<Recipe> _recipeIdeas = const [];
+  ClimateAction? _recommendedAction;
 
   @override
   void initState() {
     super.initState();
     _load();
+    ClimaRepository.instance.loadActions(),
   }
 
   // CHANGE: now also loads co2eSavedByCategory
@@ -240,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               'estimated from logged meal swaps',
                     imageUrl: 'assets/images/diet.png',
                     savedKg: _appliedDietSavings,
-                    onTap: () => _open(const DietScreen()),
+                    onTap: () => _open(const DietOnboardingGate()),
                   ),
                   const SizedBox(height: 24),
                   // ── Today for you ─────────────────────────────────────────
@@ -261,7 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     subtitle:
                         'Explore climate-friendly recipes, take the diet quiz, and track meal-swap savings.',
                     buttonLabel: 'Explore recipes',
-                    onTap: () => _open(const DietScreen()),
+                    onTap: () => _open(const DietOnboardingGate()),
                   ),
 
                   const SizedBox(height: 24),
@@ -270,7 +273,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _SectionHeader(
                     title: 'Recipe ideas',
                     actionLabel: 'See all',
-                    onActionTap: () => _open(const DietScreen()),
+                    onActionTap: () => _open(const DietOnboardingGate()),
                   ),
                   const SizedBox(height: 12),
 
@@ -279,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.menu_book_outlined,
                       message:
                           'Recipe ideas will appear here once they are available.',
-                      onTap: () => _open(const DietScreen()),
+                      onTap: () => _open(const DietOnboardingGate()),
                     )
                   else
                     ..._recipeIdeas.map(
@@ -303,19 +306,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  _RecommendedActionCard(
-                    action: ClimaRepository.instance
-                        .allActions()
-                        .whereType<ClimateAction>()
-                        .firstWhere(
-                          (action) => action.isMvpAction,
-                          orElse: () => ClimaRepository.instance
-                              .allActions()
-                              .whereType<ClimateAction>()
-                              .first,
-                        ),
-                    onTap: () => _open(const ActionsScreen()),
-                  ),
+                  if (_recommendedAction == null)
+                    _EmptyPreviewCard(
+                      icon: Icons.eco_outlined,
+                      message: 'Recommended actions will appear here once available.',
+                      onTap: () => _open(const ActionsScreen()),
+                    )
+                  else
+                    _RecommendedActionCard(
+                      action: _recommendedAction!,
+                      onTap: () => _open(const ActionsScreen()),
+                    ),
 
                   const SizedBox(height: 24),
 

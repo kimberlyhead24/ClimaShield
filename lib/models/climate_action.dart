@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum ActionCategory {
   energy,
   transport,
@@ -184,22 +186,22 @@ class ClimateAction {
       description: m['description'] as String? ?? m['summary'] as String? ?? '',
       categories: categories,
       environmentalImpactAreas:
-          (m['environmental_impact_areas'] as List?)?.cast<String>() ?? [],
+          (m['environmentalImpactAreas'] as List?)?.cast<String>() ?? [],
       costEstimate:
-          m['cost_estimate'] as String? ?? m['costEstimate'] as String? ?? '\$',
+          m['costEstimate'] as String? ?? m['costEstimate'] as String? ?? '\$',
       difficulty: m['difficulty'] as String? ?? 'Easy',
       impactScore: ActionImpactScore.fromMap(
-        m['impact_score'] as Map<String, dynamic>?,
+        m['impactScore'] as Map<String, dynamic>?,
       ),
-      isMvpAction: m['is_mvp_action'] as bool? ?? false,
+      isMvpAction: m['isMvpAction'] as bool? ?? false,
       keywords: (m['keywords'] as List?)?.cast<String>() ?? [],
-      scientificBasis: m['scientific_basis'] as String? ?? '',
-      sourceLink: m['source_link'] as String? ?? '',
-      stepByStepGuide: (m['step_by_step_guide'] as List?)?.cast<String>() ?? [],
-      videoTutorialUrl: m['video_tutorial_url'] as String?,
-      imageUrl: m['image_url'] as String?,
-      requiresProfessional: m['requires_professional'] as bool? ?? false,
-      safetyNote: m['safety_note'] as String?,
+      scientificBasis: m['scientificBasis'] as String? ?? '',
+      sourceLink: m['sourceLink'] as String? ?? '',
+      stepByStepGuide: (m['stepByStepGuide'] as List?)?.cast<String>() ?? [],
+      videoTutorialUrl: m['videoTutorialUrl'] as String?,
+      imageUrl: m['imageUrl'] as String?,
+      requiresProfessional: m['requiresProfessional'] as bool? ?? false,
+      safetyNote: m['safetyNote'] as String?,
     );
   }
 
@@ -207,59 +209,83 @@ class ClimateAction {
   factory ClimateAction.fromMap(Map<String, dynamic> m) =>
       ClimateAction.fromFirestore(
         m,
-        m['id'] as String? ?? m['action_id'] as String? ?? '',
+        m['id'] as String? ?? m['actionId'] as String? ?? '',
       );
 
   Map<String, dynamic> toMap() => {
-    'action_id': id,
+    'actionId': id,
     'name': name,
     'description': description,
     'category': categories.map((c) => c.name).toList(),
-    'environmental_impact_areas': environmentalImpactAreas,
-    'cost_estimate': costEstimate,
+    'environmentalImpactAreas': environmentalImpactAreas,
+    'costEstimate': costEstimate,
     'difficulty': difficulty,
-    'impact_score': impactScore.toMap(),
-    'is_mvp_action': isMvpAction,
+    'impactScore': impactScore.toMap(),
+    'isMvpAction': isMvpAction,
     'keywords': keywords,
-    'scientific_basis': scientificBasis,
-    'source_link': sourceLink,
-    'step_by_step_guide': stepByStepGuide,
-    'video_tutorial_url': videoTutorialUrl,
-    'image_url': imageUrl,
-    'requires_professional': requiresProfessional,
-    'safety_note': safetyNote,
+    'scientificBasis': scientificBasis,
+    'sourceLink': sourceLink,
+    'stepByStepGuide': stepByStepGuide,
+    'videoTutorialUrl': videoTutorialUrl,
+    'imageUrl': imageUrl,
+    'requiresProfessional': requiresProfessional,
+    'safetyNote': safetyNote,
   };
 }
 
 // ── CompletedAction ───────────────────────────────────────────────────────────
 
 class CompletedAction {
+  final String? id;
   final String actionId;
   final DateTime completedAt;
-  final double co2eKgSaved;
+  final double annualCo2eReductionKg;
   final String category;
 
   const CompletedAction({
+    this.id,
     required this.actionId,
     required this.completedAt,
-    required this.co2eKgSaved,
-    this.category = '',
+    required this.annualCo2eReductionKg,
+    required this.category,
   });
 
-  Map<String, dynamic> toMap() => {
-    'actionId': actionId,
-    'completedAt': completedAt.toIso8601String(),
-    'co2eKgSaved': co2eKgSaved,
-    'co2eKgPerYear': co2eKgSaved,
-    'category': category,
-  };
+  factory CompletedAction.fromMap(
+    Map<String, dynamic> map, {
+    String? id,
+  }) {
+    return CompletedAction(
+      id: id,
+      actionId: map['actionId'] as String? ?? '',
+      category: map['category'] as String? ?? 'other',
+      annualCo2eReductionKg:
+          (map['annualCo2eReductionKg'] as num?)?.toDouble() ?? 0,
+      completedAt: _dateTimeFromFirestore(map['completedAt']),
+    );
+  }
 
-  factory CompletedAction.fromMap(Map<String, dynamic> m) => CompletedAction(
-    actionId: m['actionId'] as String,
-    completedAt: m['completedAt'] is String
-        ? DateTime.parse(m['completedAt'] as String)
-        : (m['completedAt'] as dynamic)?.toDate() ?? DateTime.now(),
-    co2eKgSaved: (m['co2eKgSaved'] as num?)?.toDouble() ?? 0,
-    category: m['category'] as String? ?? '',
-  );
+  Map<String, dynamic> toMap() {
+    return {
+      'actionId': actionId,
+      'category': category,
+      'annualCo2eReductionKg': annualCo2eReductionKg,
+      'completedAt': Timestamp.fromDate(completedAt),
+    };
+  }
+
+  static DateTime _dateTimeFromFirestore(Object? value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+
+    return DateTime.now();
+  }
 }

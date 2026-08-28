@@ -1,5 +1,4 @@
 import 'package:clima_shield/data/carbon_math.dart';
-import 'package:clima_shield/data/sample_data.dart';
 import 'package:clima_shield/models/footprint.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,26 +44,6 @@ void main() {
         computeFootprint(family).homeEnergyKg,
         closeTo(computeFootprint(solo).homeEnergyKg / 4, 0.1),
       );
-    });
-  });
-
-  group('sample data', () {
-    test('every action has a non-empty id and title', () {
-      for (final a in SampleData.actions) {
-        expect(a.id.isNotEmpty, isTrue);
-        expect(a.title.isNotEmpty, isTrue);
-      }
-    });
-
-    test('meals are tier-tagged with known tiers', () {
-      const tiers = {'best', 'good', 'fair', 'high'};
-      for (final m in SampleData.meals) {
-        expect(
-          tiers.contains(m.tier),
-          isTrue,
-          reason: '${m.name} has tier ${m.tier}',
-        );
-      }
     });
   });
 }

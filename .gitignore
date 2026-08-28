@@ -16,6 +16,12 @@ output/
 .swiftpm/
 migrate_working_dir/
 .vs/
+exports/
+migrations/
+actionIdMigrationBackups/
+actionIdMigrationReports/
+smallCatalogMigrationBackups/
+smallCatalogMigrationReports/
 # IntelliJ related
 *.iml
 *.ipr

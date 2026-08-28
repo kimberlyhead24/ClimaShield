@@ -15,13 +15,16 @@ class _ActionsScreenState extends State<ActionsScreen> {
   ActionCategory? _categoryFilter;
   _StatusFilter _statusFilter = _StatusFilter.all;
   Set<String> _completedIds = {};
+  List<ClimateAction> _actions = const [];
   String _search = '';
+  bool _isLoading = true;
+  String? _loadError;
   final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadCompleted();
+    _load();
   }
 
   @override
@@ -30,14 +33,43 @@ class _ActionsScreenState extends State<ActionsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCompleted() async {
-    final list = await ClimaRepository.instance.completedActions();
-    if (!mounted) return;
-    setState(() => _completedIds = list.map((c) => c.actionId).toSet());
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        ClimaRepository.instance.loadActions(),
+        ClimaRepository.instance.completedActions(),
+      ]);
+    
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _actions = results[0] as List<ClimateAction>;
+      _completedIds = (results[1] as List<CompletedAction>)
+        .map((entry) => entry.actionId)
+        .toSet();
+      _isLoading = false;
+    });
+  } catch (error) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = false;
+      _loadError = 'Actions could not be loaded: $error';
+    });
   }
+}
 
   List<ClimateAction> get _filtered {
-    var result = ClimaRepository.instance.allActions();
+    var result = List<ClimateAction>.from(_actions);
 
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
@@ -88,7 +120,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF111416),
       body: RefreshIndicator(
-        onRefresh: _loadCompleted,
+        onRefresh: _load,
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -225,8 +257,45 @@ class _ActionsScreenState extends State<ActionsScreen> {
                 ),
               ),
             ),
-
-            filtered.isEmpty
+_isLoading
+    ? const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: CircularProgressIndicator()),
+      )
+    : _loadError != null
+    ? SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  color: Color(0xFFA3AAB2),
+                  size: 48,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFA3AAB2),
+                    fontFamily: 'Manrope',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _load,
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      )
+          : filtered.isEmpty
                 ? SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
@@ -273,7 +342,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ActionDetailScreen(action: a)),
-    ).then((_) => _loadCompleted());
+    ).then((_) => _load());
   }
 }
 

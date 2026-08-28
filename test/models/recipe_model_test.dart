@@ -7,10 +7,10 @@ void main() {
       final recipe = Recipe.fromMap({
         'name': 'Test Recipe',
         'description': 'A test recipe.',
-        'image_url': '',
+        'imageUrl': '',
         'servings': 4,
-        'prep_time_minutes': 10,
-        'total_time_minutes': 35,
+        'prepTimeMinutes': 10,
+        'totalTimeMinutes': 35,
         'estimatedCostUsdTotal': 12.40,
         'estimatedCostUsdPerServing': 3.10,
       }, id: 'recipe-1');
@@ -28,7 +28,7 @@ void main() {
       final recipe = Recipe.fromMap({
         'name': 'No Cost Recipe',
         'description': '',
-        'image_url': '',
+        'imageUrl': '',
         'servings': 4,
       });
 
@@ -38,11 +38,11 @@ void main() {
       expect(recipe.effectiveCostPerServing, isNull);
     });
 
-    test('calcualtes per-serving cost from the total when needed', () {
+    test('calculates per-serving cost from the total when needed', () {
       final recipe = Recipe.fromMap({
         'name': 'Total Cost Only Recipe',
         'description': '',
-        'image_url': '',
+        'imageUrl': '',
         'servings': 4,
         'estimatedCostUsdTotal': 10.00,
       });
@@ -56,26 +56,61 @@ void main() {
       final recipe = Recipe.fromMap({
         'name': 'Prep Time Only Recipe',
         'description': '',
-        'image_url': '',
-        'prep_time_minutes': 18,
+        'imageUrl': '',
+        'prepTimeMinutes': 18,
       });
 
       expect(recipe.totalTimeMinutes, 0);
       expect(recipe.effectiveTotalTimeMinutes, 18);
     });
+    test('parses the current Firestore camelCase recipe schema', () {
+      final recipe = Recipe.fromMap({
+        'name': 'Catalog Recipe',
+        'imageUrl': 'https://example.com/recipe.png',
+        'mealType': ['dinner'],
+        'dietType': ['vegetarian'],
+        'category': ['mediterranean'],
+        'allergens': ['gluten'],
+        'servings': 4,
+        'prepTimeMinutes': 15,
+        'totalTimeMinutes': 35,
+        'estimatedCostUsdTotal': 12.40,
+        'estimatedCostUsdPerServing': 3.10,
+        'nutritionalInfo': {
+          'calories': 425,
+          'proteinGrams': 21,
+          'carbsGrams': 54,
+          'fatGrams': 15,
+        },
+        'impactScore': {
+        'comparisonBaseline': 'Beef pasta',
+        'co2eReductionPerServingkg': 1.4,
+        'waterSavedPerServinGallons': 120,
+        'wasteDivertedPerServingkg': 0.2,
+        },
+      }, id: 'recipe-1');
 
+      expect(recipe.title, 'Catalog Recipe');
+      expect(recipe.imageUrl, 'https://example.com/recipe.png');
+      expect(recipe.mealTypes, ['dinner']);
+      expect(recipe.dietTypes, ['vegetarian']);
+      expect(recipe.totalTimeMinutes, 35);
+      expect(recipe.nutrition.proteinGrams, 21);
+      expect(recipe.climateImpact.comparisonBaseline, 'Beef pasta');
+      expect(recipe.climateImpact.estimatedReductionKgPerServing, 1.4);
+      });
     test('parses allergens, categories, nutrition, and climate impact', () {
       final recipe = Recipe.fromMap({
         'name': 'Full Metadata Recipe',
         'description': '',
-        'image_url': '',
+        'imageUrl': '',
         'allergens': ['gluten', 'dairy'],
         'category': ['italian', 'pasta'],
-        'nutritional_info': {
+        'nutritionalInfo': {
           'calories': 425,
-          'protein_grams': 21,
-          'carbs_grams': 54,
-          'fat_grams': 15,
+          'proteinGrams': 21,
+          'carbsGrams': 54,
+          'fatGrams': 15,
         },
         'impact_score': {
           'co2e_reduction_per_serving_kg': 1.4,
@@ -103,7 +138,7 @@ void main() {
       final recipe = Recipe.fromMap({
         'name': 'Minimal Recipe',
         'description': '',
-        'image_url': '',
+        'imageUrl': '',
       });
 
       expect(recipe.servings, 1);

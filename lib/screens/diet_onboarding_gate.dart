@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../data/repository.dart';
 import '../models/diet_profile.dart';
 import 'diet_quiz_screen.dart';
-import 'diet_screen.dart';
+import 'meal_plan_screen.dart';
 
 /// Decides whether a personal user needs diet onboarding.
 ///
 /// Users without a saved DietProfile are sent to DietQuizScreen.
-/// Users with a completed profile can use DietScreen normally.
+
 class DietOnboardingGate extends StatefulWidget {
   const DietOnboardingGate({super.key});
 
@@ -79,6 +79,6 @@ class _DietOnboardingGateState extends State<DietOnboardingGate> {
       );
     }
 
-    return const DietScreen();
+    return const MealPlanScreen();
   }
 }

@@ -1,36 +1,45 @@
-import 'dart:async';
 import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../models/carbon_calculation_record.dart';
 import '../models/climate_action.dart';
 import '../models/community.dart';
 import '../models/diet_entry.dart';
-import '../models/footprint.dart';
-import '../models/weekly_meal_plan.dart';
-import 'sample_data.dart';
-import '../models/carbon_calculation_record.dart';
 import '../models/diet_profile.dart';
+import '../models/footprint.dart';
 import '../models/recipe_model.dart';
+import '../models/weekly_meal_plan.dart';
 
-/// Thin data layer with two modes:
-/// - Firestore (when a user is signed in and Firebase initialized OK)
-/// - In-memory fallback seeded from [SampleData] for offline / dev runs
 class ClimaRepository {
   ClimaRepository._();
+
   static final ClimaRepository instance = ClimaRepository._();
 
-  FirebaseFirestore? get _db {
+  final List<CompletedAction> _localCompletedActions = [];
+  final List<DietLogEntry> _localDietLogs = [];
+  final Map<String, WeeklyMealPlan> _localMealPlans = {};
+  final List<CommunityPost> _localPosts = [];
+
+  CarbonCalculatorInputs? _localInputs;
+  CarbonFootprint? _localFootprint;
+  DietProfile? _localDietProfile;
+
+  FirebaseFirestore? get _database {
     try {
-      return Firebase.apps.isEmpty ? null : FirebaseFirestore.instance;
+      if (Firebase.apps.isEmpty) {
+        return null;
+      }
+
+      return FirebaseFirestore.instance;
     } catch (_) {
       return null;
     }
   }
 
-  String? get _uid {
+  String? get _userId {
     try {
       return FirebaseAuth.instance.currentUser?.uid;
     } catch (_) {
@@ -38,151 +47,204 @@ class ClimaRepository {
     }
   }
 
-  bool get isAuthenticated => _uid != null;
-  bool get isRemoteAvailable => _db != null && isAuthenticated;
+  bool get isAuthenticated => _userId != null;
 
-  // --- In-memory caches ---
-  final List<CompletedAction> _localCompleted = [];
-  final List<DietLogEntry> _localDietLog = [];
-  final Map<String, WeeklyMealPlan> _localMealPlans = {};
-  CarbonCalculatorInputs? _localInputs;
-  CarbonFootprint? _localFootprint;
-  DietProfile? _localDietProfile;
-  late final List<CommunityPost> _localPosts = SampleData.posts();
-  late final List<Petition> _localPetitions = SampleData.petitions();
-  final Set<String> _signedPetitions = {};
+  bool get isRemoteAvailable =>
+      _database != null && _userId != null;
 
-  // ----- Actions -----
-  List<ClimateAction> allActions() => SampleData.actions;
+  DocumentReference<Map<String, dynamic>>? get _userDocument {
+    final database = _database;
+    final userId = _userId;
+
+    if (database == null || userId == null) {
+      return null;
+    }
+
+    return database.collection('users').doc(userId);
+  }
+
+  Future<List<ClimateAction>> loadActions() async {
+    final database = _database;
+
+    if (database == null) {
+      return const [];
+    }
+
+    try {
+      final snapshot = await database
+          .collection('actions')
+          .orderBy('name')
+          .get();
+
+      return snapshot.docs.map((document) {
+        return ClimateAction.fromMap(
+          document.data(),
+          id: document.id,
+        );
+      }).toList(growable: false);
+    } catch (error, stackTrace) {
+      log(
+        'loadActions failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      return const [];
+    }
+  }
 
   Future<List<CompletedAction>> completedActions() async {
-    if (!isRemoteAvailable) return List.unmodifiable(_localCompleted);
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return List.unmodifiable(_localCompletedActions);
+    }
+
     try {
-      final snap = await _db!
-          .collection('users')
-          .doc(_uid)
+      final snapshot = await userDocument
           .collection('completedActions')
           .orderBy('completedAt', descending: true)
           .get();
-      return snap.docs.map((d) => CompletedAction.fromMap(d.data())).toList();
-    } catch (e) {
-      log('completedActions remote failed: $e', name: 'ClimaRepository');
-      return List.unmodifiable(_localCompleted);
+
+      return snapshot.docs.map((document) {
+        return CompletedAction.fromMap(
+          document.data(),
+          id: document.id,
+        );
+      }).toList(growable: false);
+    } catch (error, stackTrace) {
+      log(
+        'completedActions failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      return List.unmodifiable(_localCompletedActions);
     }
   }
 
-  // CHANGE: Added category and co2eKgPerYear to both local cache and Firestore write
-  Future<void> markActionComplete(ClimateAction a) async {
+  Future<void> markActionComplete(ClimateAction action) async {
     final entry = CompletedAction(
-      actionId: a.id,
+      actionId: action.id,
       completedAt: DateTime.now(),
-      co2eKgSaved: a.co2eKgPerYear,
-      category: a.primaryCategory.name,
+      annualCo2eReductionKg: action.co2eKgPerYear,
+      category: action.primaryCategory.name,
     );
-    _localCompleted.insert(0, entry);
-    if (!isRemoteAvailable) return;
+
+    _localCompletedActions.removeWhere(
+      (completedAction) =>
+          completedAction.actionId == action.id,
+    );
+    _localCompletedActions.insert(0, entry);
+
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return;
+    }
+
     try {
-      await _db!
-          .collection('users')
-          .doc(_uid)
+      await userDocument
           .collection('completedActions')
-          .doc(
-            a.id,
-          ) // use action ID as doc ID so re-completing doesn't duplicate
+          .doc(action.id)
           .set({
-            'actionId': a.id,
-            'category':
-                a.primaryCategory.name, // e.g. 'energy', 'transport', 'diet'
-            'co2eKgPerYear': a.co2eKgPerYear,
-            'co2eKgSaved': a.co2eKgPerYear,
+            'actionId': action.id,
+            'category': action.primaryCategory.name,
+            'annualCo2eReductionKg': action.co2eKgPerYear,
             'completedAt': FieldValue.serverTimestamp(),
           });
-    } catch (e) {
-      log('markActionComplete remote failed: $e', name: 'ClimaRepository');
+    } catch (error, stackTrace) {
+      log(
+        'markActionComplete failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
-
-  /// Annual estimated savings from completed non-diet actions.
-  ///
-  /// Logged recipe swaps are calculated separately from real meal records,
-  /// so diet-category actions are excluded to avoid double counting.
 
   Future<double> totalNonDietActionSavingsKg() async {
-    final list = await completedActions();
+    final entries = await completedActions();
 
-    return list
+    return entries
         .where((entry) => entry.category != 'diet')
-        .fold<double>(0, (total, entry) => total + entry.co2eKgSaved);
+        .fold<double>(
+          0,
+          (total, entry) =>
+              total + entry.annualCo2eReductionKg,
+        );
   }
 
-  /// NEW: Returns total CO₂e saved per category, e.g. {'energy': 145.0, 'transport': 80.0}
-  /// Used by the dashboard Impact Areas section.
   Future<Map<String, double>> co2eSavedByCategory() async {
-    final list = await completedActions();
-    final Map<String, double> totals = {};
+    final entries = await completedActions();
+    final totals = <String, double>{};
 
-    if (isRemoteAvailable) {
-      // Use Firestore data which has category stored
-      try {
-        final snap = await _db!
-            .collection('users')
-            .doc(_uid)
-            .collection('completedActions')
-            .get();
-        for (final doc in snap.docs) {
-          final data = doc.data();
-          final category = (data['category'] as String?) ?? 'other';
-          final kg = (data['co2eKgPerYear'] as num?)?.toDouble() ?? 0.0;
-          totals[category] = (totals[category] ?? 0) + kg;
-        }
-        return totals;
-      } catch (e) {
-        log('co2eSavedByCategory remote failed: $e', name: 'ClimaRepository');
-      }
+    for (final entry in entries) {
+      final category =
+          entry.category.isEmpty ? 'other' : entry.category;
+
+      totals[category] =
+          (totals[category] ?? 0) +
+              entry.annualCo2eReductionKg;
     }
 
-    // Fallback: derive from local completed list + allActions lookup
-    final actionsMap = {for (final a in SampleData.actions) a.id: a};
-    for (final completed in list) {
-      final action = actionsMap[completed.actionId];
-      if (action == null) continue;
-      final key = action.primaryCategory.name;
-      totals[key] = (totals[key] ?? 0) + completed.co2eKgSaved;
-    }
     return totals;
   }
 
-  // ----- Footprint -----
   Future<CarbonCalculatorInputs?> loadInputs() async {
-    if (!isRemoteAvailable) return _localInputs;
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return _localInputs;
+    }
+
     try {
-      final doc = await _db!
-          .collection('users')
-          .doc(_uid)
+      final document = await userDocument
           .collection('meta')
           .doc('inputs')
           .get();
-      if (!doc.exists) return _localInputs;
-      return CarbonCalculatorInputs.fromMap(doc.data() ?? {});
-    } catch (e) {
-      log('loadInputs failed: $e', name: 'ClimaRepository');
+
+      if (!document.exists) {
+        return _localInputs;
+      }
+
+      return CarbonCalculatorInputs.fromMap(
+        document.data() ?? {},
+      );
+    } catch (error, stackTrace) {
+      log(
+        'loadInputs failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return _localInputs;
     }
   }
 
   Future<CarbonFootprint?> loadFootprint() async {
-    if (!isRemoteAvailable) return _localFootprint;
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return _localFootprint;
+    }
+
     try {
-      final doc = await _db!
-          .collection('users')
-          .doc(_uid)
+      final document = await userDocument
           .collection('meta')
           .doc('footprint')
           .get();
-      if (!doc.exists) return _localFootprint;
-      return CarbonFootprint.fromMap(doc.data() ?? {});
-    } catch (e) {
-      log('loadFootprint failed: $e', name: 'ClimaRepository');
+
+      if (!document.exists) {
+        return _localFootprint;
+      }
+
+      return CarbonFootprint.fromMap(
+        document.data() ?? {},
+      );
+    } catch (error, stackTrace) {
+      log(
+        'loadFootprint failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return _localFootprint;
     }
   }
@@ -194,100 +256,68 @@ class ClimaRepository {
     _localInputs = inputs;
     _localFootprint = footprint;
 
-    log(
-      'saveCalculation: isRemoteAvailable=$isRemoteAvailable, uid=$_uid',
-      name: 'ClimaRepository',
-    );
+    final database = _database;
+    final userDocument = _userDocument;
 
-    if (!isRemoteAvailable) {
-      log(
-        'saveCalculation: skipping Firestore — not authenticated or db null',
-        name: 'ClimaRepository',
-      );
+    if (database == null || userDocument == null) {
       return;
     }
 
     try {
-      final batch = _db!.batch();
+      final batch = database.batch();
 
-      final inputsRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('inputs');
-
-      final footprintRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('footprint');
-
-      batch.set(inputsRef, inputs.toMap());
-      batch.set(footprintRef, footprint.toMap());
+      batch.set(
+        userDocument.collection('meta').doc('inputs'),
+        inputs.toMap(),
+      );
+      batch.set(
+        userDocument.collection('meta').doc('footprint'),
+        footprint.toMap(),
+      );
 
       await batch.commit();
-
+    } catch (error, stackTrace) {
       log(
-        'saveCalculation: Firestore write succeeded',
+        'saveCalculation failed: $error',
         name: 'ClimaRepository',
+        stackTrace: stackTrace,
       );
-    } catch (e) {
-      log('saveCalculation remote failed: $e', name: 'ClimaRepository');
-    }
-  }
-
-  /// Clears the user's current calculator inputs and summary.
-  ///
-  /// This does not delete versioned calculation history.
-  Future<void> clearFootprintData() async {
-    if (!isRemoteAvailable) {
-      _localInputs = null;
-      _localFootprint = null;
-      return;
-    }
-
-    try {
-      final batch = _db!.batch();
-
-      final inputsRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('inputs');
-
-      final footprintRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('footprint');
-
-      batch.delete(inputsRef);
-      batch.delete(footprintRef);
-
-      await batch.commit();
-
-      _localInputs = null;
-      _localFootprint = null;
-
-      log(
-        'clearFootprintData: Firestore delete succeeded',
-        name: 'ClimaRepository',
-      );
-    } catch (e) {
-      log('clearFootprintData remote failed: $e', name: 'ClimaRepository');
       rethrow;
     }
   }
 
-  /// Deletes the user's saved carbon calculation history.
-  ///
-  /// TODO(schema-v2): Decide whether this should delete all history or only the
-  /// latest calculation record.
-  Future<void> clearCalculationHistory() async {
-    // TODO(schema-v2): Implement after retention policy is decided.
+  Future<void> clearFootprintData() async {
+    _localInputs = null;
+    _localFootprint = null;
+
+    final database = _database;
+    final userDocument = _userDocument;
+
+    if (database == null || userDocument == null) {
+      return;
+    }
+
+    try {
+      final batch = database.batch();
+
+      batch.delete(
+        userDocument.collection('meta').doc('inputs'),
+      );
+      batch.delete(
+        userDocument.collection('meta').doc('footprint'),
+      );
+
+      await batch.commit();
+    } catch (error, stackTrace) {
+      log(
+        'clearFootprintData failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
-  /// Saves a carbon calculation along with its associated inputs and footprint.
   Future<void> saveCalculationWithRecord(
     CarbonCalculatorInputs inputs,
     CarbonFootprint footprint,
@@ -296,91 +326,84 @@ class ClimaRepository {
     _localInputs = inputs;
     _localFootprint = footprint;
 
-    if (!isRemoteAvailable) {
-      log(
-        'saveCalculationWithRecord: local-only mode',
-        name: 'ClimaRepository',
-      );
+    final database = _database;
+    final userDocument = _userDocument;
+
+    if (database == null || userDocument == null) {
       return;
     }
 
     try {
-      final batch = _db!.batch();
+      final batch = database.batch();
 
-      final inputsRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('inputs');
-
-      final footprintRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('meta')
-          .doc('footprint');
-      final calculationRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('carbonCalculations')
-          .doc(record.calculationId);
-
-      batch.set(inputsRef, inputs.toMap());
-      batch.set(footprintRef, footprint.toMap());
-      batch.set(calculationRef, record.toMap());
+      batch.set(
+        userDocument.collection('meta').doc('inputs'),
+        inputs.toMap(),
+      );
+      batch.set(
+        userDocument.collection('meta').doc('footprint'),
+        footprint.toMap(),
+      );
+      batch.set(
+        userDocument
+            .collection('carbonCalculations')
+            .doc(record.calculationId),
+        record.toMap(),
+      );
 
       await batch.commit();
-
+    } catch (error, stackTrace) {
       log(
-        'saveCalculationWithRecord: Firestore write succeeded',
+        'saveCalculationWithRecord failed: $error',
         name: 'ClimaRepository',
+        stackTrace: stackTrace,
       );
-    } catch (e) {
-      log('saveCalculation remote failed: $e', name: 'ClimaRepository');
-      rethrow; // Rethrow the exception to allow the caller to handle it
-    }
-  }
-
-  Future<void> saveCarbonCalculation(CarbonCalculationRecord record) async {
-    if (!isRemoteAvailable) {
-      log(
-        'saveCarbonCalculation: skipped because Firestore is unavailable',
-        name: 'ClimaRepository',
-      );
-      return;
-    }
-
-    try {
-      final calculationRef = _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('carbonCalculations')
-          .doc(record.calculationId);
-
-      await calculationRef.set(record.toMap());
-
-      log(
-        'saveCarbonCalculation: Firestore write succeeded',
-        name: 'ClimaRepository',
-      );
-    } catch (e) {
-      log('saveCarbonCalculation remote failed: $e', name: 'ClimaRepository');
       rethrow;
     }
   }
 
-  Future<CarbonCalculationRecord?> loadLatestCarbonCalculation() async {
-    if (!isRemoteAvailable) return null;
+  Future<void> saveCarbonCalculation(
+    CarbonCalculationRecord record,
+  ) async {
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return;
+    }
 
     try {
-      final snapshot = await _db!
-          .collection('users')
-          .doc(_uid)
+      await userDocument
+          .collection('carbonCalculations')
+          .doc(record.calculationId)
+          .set(record.toMap());
+    } catch (error, stackTrace) {
+      log(
+        'saveCarbonCalculation failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
+  Future<CarbonCalculationRecord?>
+      loadLatestCarbonCalculation() async {
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return null;
+    }
+
+    try {
+      final snapshot = await userDocument
           .collection('carbonCalculations')
           .orderBy('createdAt', descending: true)
           .limit(1)
           .get();
 
-      if (snapshot.docs.isEmpty) return null;
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
 
       final document = snapshot.docs.first;
 
@@ -388,21 +411,28 @@ class ClimaRepository {
         ...document.data(),
         'calculationId': document.id,
       });
-    } catch (e) {
-      log('loadLatestCarbonCalculation failed: $e', name: 'ClimaRepository');
+    } catch (error, stackTrace) {
+      log(
+        'loadLatestCarbonCalculation failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
 
-  Future<List<CarbonCalculationRecord>> loadCarbonCalculationHistory({
+  Future<List<CarbonCalculationRecord>>
+      loadCarbonCalculationHistory({
     int limit = 20,
   }) async {
-    if (!isRemoteAvailable) return const [];
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return const [];
+    }
 
     try {
-      final snapshot = await _db!
-          .collection('users')
-          .doc(_uid)
+      final snapshot = await userDocument
           .collection('carbonCalculations')
           .orderBy('createdAt', descending: true)
           .limit(limit)
@@ -413,25 +443,26 @@ class ClimaRepository {
           ...document.data(),
           'calculationId': document.id,
         });
-      }).toList();
-    } catch (e) {
-      log('loadCarbonCalculationHistory failed: $e', name: 'ClimaRepository');
+      }).toList(growable: false);
+    } catch (error, stackTrace) {
+      log(
+        'loadCarbonCalculationHistory failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return const [];
     }
   }
 
-  /// Loads the authenticated user's current saved diet profile.
-  ///
-  /// Returns null when the user has not completed the diet questionnaire.
   Future<DietProfile?> loadDietProfile() async {
-    if (!isRemoteAvailable) {
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
       return _localDietProfile;
     }
 
     try {
-      final document = await _db!
-          .collection('users')
-          .doc(_uid)
+      final document = await userDocument
           .collection('dietProfile')
           .doc('current')
           .get();
@@ -440,99 +471,97 @@ class ClimaRepository {
         return _localDietProfile;
       }
 
-      final profile = DietProfile.fromMap(document.data() ?? {});
-      _localDietProfile = profile;
+      final profile = DietProfile.fromMap(
+        document.data() ?? {},
+      );
 
+      _localDietProfile = profile;
       return profile;
-    } catch (e) {
-      log('loadDietProfile failed: $e', name: 'ClimaRepository');
+    } catch (error, stackTrace) {
+      log(
+        'loadDietProfile failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return _localDietProfile;
     }
   }
 
-  /// Saves the authenticated user's diet profile to Firestore.
-  Future<void> saveDietProfile(DietProfile profile) async {
+  Future<void> saveDietProfile(
+    DietProfile profile,
+  ) async {
     _localDietProfile = profile;
 
-    if (!isRemoteAvailable) {
-      log(
-        'saveDietProfile: local-only mode, skipping Firestore write',
-        name: 'ClimaRepository',
-      );
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
       return;
     }
 
     try {
-      await _db!
-          .collection('users')
-          .doc(_uid)
+      await userDocument
           .collection('dietProfile')
           .doc('current')
           .set(profile.toMap());
-
+    } catch (error, stackTrace) {
       log(
-        'saveDietProfile: Firestore write succeeded',
+        'saveDietProfile failed: $error',
         name: 'ClimaRepository',
+        stackTrace: stackTrace,
       );
-    } catch (e) {
-      log('saveDietProfile failed: $e', name: 'ClimaRepository');
       rethrow;
     }
   }
 
-  // ----- Diet -----
-  Future<List<DietLogEntry>> dietLog({int? days}) async {
+  Future<List<DietLogEntry>> dietLog({
+    int? days,
+  }) async {
     final cutoff = days == null
         ? null
         : DateTime.now().subtract(Duration(days: days));
-    if (!isRemoteAvailable) {
-      return _localDietLog
-          .where((e) => cutoff == null || e.loggedAt.isAfter(cutoff))
-          .toList();
+
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return _localDietLogs
+          .where(
+            (entry) =>
+                cutoff == null || entry.loggedAt.isAfter(cutoff),
+          )
+          .toList(growable: false);
     }
+
     try {
-      final snap = await _db!
-          .collection('users')
-          .doc(_uid)
+      final snapshot = await userDocument
           .collection('dietLog')
           .orderBy('loggedAt', descending: true)
           .limit(200)
           .get();
-      return snap.docs.map((d) => DietLogEntry.fromMap(d.data())).where((e) {
-        return cutoff == null || e.loggedAt.isAfter(cutoff);
-      }).toList();
-    } catch (e) {
-      log('dietLog remote failed: $e', name: 'ClimaRepository');
-      return List.unmodifiable(_localDietLog);
+
+      return snapshot.docs.map((document) {
+        return DietLogEntry.fromMap(
+          document.data(),
+          id: document.id,
+        );
+      }).where((entry) {
+        return cutoff == null || entry.loggedAt.isAfter(cutoff);
+      }).toList(growable: false);
+    } catch (error, stackTrace) {
+      log(
+        'dietLog failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      return List.unmodifiable(_localDietLogs);
     }
   }
 
-  Future<void> logMeal(MealPreset preset) async {
-    final entry = DietLogEntry.fromPreset(preset);
-    _localDietLog.insert(0, entry);
-    if (!isRemoteAvailable) return;
-    try {
-      await _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('dietLog')
-          .add(entry.toMap());
-    } catch (e) {
-      log('logMeal remote failed: $e', name: 'ClimaRepository');
-    }
-  }
-
-  /// Logs a real catalog recipe and stores estimated comparative savings.
-  ///
-  /// The recipe's saved comparison data is copied into the user log so a later
-  /// catalog edit cannot alter a historical result.
   Future<void> logRecipeMeal(
     Recipe recipe, {
     required int servings,
     DateTime? plannedForDate,
   }) async {
     final safeServings = servings < 1 ? 1 : servings;
-
     final savingsPerServing =
         recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
 
@@ -542,28 +571,35 @@ class ClimaRepository {
       servings: safeServings,
       estimatedSavingsKgPerServing: savingsPerServing,
       estimatedSavingsKg: savingsPerServing * safeServings,
-      comparisonBaseline: recipe.climateImpact.comparisonBaseline,
+      comparisonBaseline:
+          recipe.climateImpact.comparisonBaseline,
       plannedForDate: plannedForDate,
       loggedAt: DateTime.now(),
     );
 
-    _localDietLog.insert(0, entry);
+    _localDietLogs.insert(0, entry);
 
-    if (!isRemoteAvailable) return;
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
+      return;
+    }
 
     try {
-      await _db!
-          .collection('users')
-          .doc(_uid)
-          .collection('dietLog')
-          .add(entry.toMap());
-    } catch (error) {
-      log('logRecipeMeal remote failed: $error', name: 'ClimaRepository');
+      await userDocument.collection('dietLog').add(entry.toMap());
+    } catch (error, stackTrace) {
+      log(
+        'logRecipeMeal failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 
-  /// Total estimated meal-swap savings from the user's diet log.
-  Future<double> totalDietSavingsKg({int? days}) async {
+  Future<double> totalDietSavingsKg({
+    int? days,
+  }) async {
     final entries = await dietLog(days: days);
 
     return entries.fold<double>(
@@ -572,19 +608,19 @@ class ClimaRepository {
     );
   }
 
-  // ----- Weekly meal plans -----
-
-  /// Returns the Monday at the start of the week containing [date].
-  DateTime _mondayFor(DateTime date) {
-    final normalized = DateTime(date.year, date.month, date.day);
+  DateTime mondayFor(DateTime date) {
+    final normalized = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
 
     return normalized.subtract(
       Duration(days: normalized.weekday - DateTime.monday),
     );
   }
 
-  /// Converts a Monday date into the stable Firestore document ID format.
-  String _weekPlanId(DateTime weekStart) {
+  String weekPlanId(DateTime weekStart) {
     final year = weekStart.year.toString().padLeft(4, '0');
     final month = weekStart.month.toString().padLeft(2, '0');
     final day = weekStart.day.toString().padLeft(2, '0');
@@ -592,19 +628,20 @@ class ClimaRepository {
     return '$year-$month-$day';
   }
 
-  /// Loads the weekly plan that contains [date].
-  Future<WeeklyMealPlan?> loadWeeklyMealPlan({DateTime? date}) async {
-    final weekStart = _mondayFor(date ?? DateTime.now());
-    final planId = _weekPlanId(weekStart);
+  Future<WeeklyMealPlan?> loadWeeklyMealPlan({
+    DateTime? date,
+  }) async {
+    final weekStart = mondayFor(date ?? DateTime.now());
+    final planId = weekPlanId(weekStart);
 
-    if (!isRemoteAvailable) {
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
       return _localMealPlans[planId];
     }
 
     try {
-      final document = await _db!
-          .collection('users')
-          .doc(_uid)
+      final document = await userDocument
           .collection('mealPlans')
           .doc(planId)
           .get();
@@ -619,55 +656,71 @@ class ClimaRepository {
       );
 
       _localMealPlans[planId] = plan;
-
       return plan;
-    } catch (error) {
-      log('loadWeeklyMealPlan failed: $error', name: 'ClimaRepository');
-
+    } catch (error, stackTrace) {
+      log(
+        'loadWeeklyMealPlan failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return _localMealPlans[planId];
     }
   }
 
-  /// Saves one personal weekly meal plan.
-  ///
-  /// The caller supplies a Monday-based [WeeklyMealPlan.id], such as
-  /// `2026-08-10`.
-  Future<bool> saveWeeklyMealPlan(WeeklyMealPlan plan) async {
+  Future<bool> saveWeeklyMealPlan(
+    WeeklyMealPlan plan,
+  ) async {
     _localMealPlans[plan.id] = plan;
 
-    if (!isRemoteAvailable) {
+    final userDocument = _userDocument;
+
+    if (userDocument == null) {
       return true;
     }
 
     try {
-      await _db!
-          .collection('users')
-          .doc(_uid)
+      await userDocument
           .collection('mealPlans')
           .doc(plan.id)
           .set(plan.toMap());
 
       return true;
-    } catch (error) {
-      log('saveWeeklyMealPlan failed: $error', name: 'ClimaRepository');
-
+    } catch (error, stackTrace) {
+      log(
+        'saveWeeklyMealPlan failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }
 
-  // ----- Community -----
   Future<List<CommunityPost>> communityPosts() async {
-    if (!isRemoteAvailable) return List.unmodifiable(_localPosts);
+    final database = _database;
+
+    if (database == null) {
+      return List.unmodifiable(_localPosts);
+    }
+
     try {
-      final snap = await _db!
+      final snapshot = await database
           .collection('posts')
           .orderBy('createdAt', descending: true)
           .limit(100)
           .get();
-      if (snap.docs.isEmpty) return List.unmodifiable(_localPosts);
-      return snap.docs.map((d) => CommunityPost.fromMap(d.data())).toList();
-    } catch (e) {
-      log('communityPosts remote failed: $e', name: 'ClimaRepository');
+
+      return snapshot.docs.map((document) {
+        return CommunityPost.fromMap(
+          document.data(),
+          id: document.id,
+        );
+      }).toList(growable: false);
+    } catch (error, stackTrace) {
+      log(
+        'communityPosts failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
       return List.unmodifiable(_localPosts);
     }
   }
@@ -677,81 +730,66 @@ class ClimaRepository {
     required String authorName,
     List<String> tags = const [],
   }) async {
-    final post = CommunityPost(
-      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+    final localPost = CommunityPost(
+      id: 'local${DateTime.now().millisecondsSinceEpoch}',
       authorName: authorName,
-      authorId: _uid,
+      authorId: _userId,
       body: body,
       createdAt: DateTime.now(),
       tags: tags,
     );
-    _localPosts.insert(0, post);
-    if (isRemoteAvailable) {
-      try {
-        await _db!.collection('posts').add(post.toMap());
-      } catch (e) {
-        log('createPost remote failed: $e', name: 'ClimaRepository');
-      }
-    }
-    return post;
-  }
 
-  Future<void> likePost(String id) async {
-    final idx = _localPosts.indexWhere((p) => p.id == id);
-    if (idx >= 0) {
-      _localPosts[idx] = _localPosts[idx].copyWith(
-        likes: _localPosts[idx].likes + 1,
-      );
-    }
-    if (isRemoteAvailable) {
-      try {
-        await _db!.collection('posts').doc(id).update({
-          'likes': FieldValue.increment(1),
-        });
-      } catch (_) {
-        /* local-only post or offline */
-      }
-    }
-  }
+    _localPosts.insert(0, localPost);
 
-  // ----- Petitions -----
-  Future<List<Petition>> petitions() async {
-    if (!isRemoteAvailable) return List.unmodifiable(_localPetitions);
+    final database = _database;
+
+    if (database == null) {
+      return localPost;
+    }
+
     try {
-      final snap = await _db!.collection('petitions').get();
-      if (snap.docs.isEmpty) return List.unmodifiable(_localPetitions);
-      return snap.docs.map((d) => Petition.fromMap(d.data())).toList();
-    } catch (e) {
-      log('petitions remote failed: $e', name: 'ClimaRepository');
-      return List.unmodifiable(_localPetitions);
+      final reference = await database
+          .collection('posts')
+          .add(localPost.toMap());
+
+      return localPost.copyWith(id: reference.id);
+    } catch (error, stackTrace) {
+      log(
+        'createPost failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
+      return localPost;
     }
   }
 
-  bool hasSigned(String petitionId) => _signedPetitions.contains(petitionId);
+  Future<void> likePost(String postId) async {
+    final localIndex = _localPosts.indexWhere(
+      (post) => post.id == postId,
+    );
 
-  Future<void> signPetition(Petition p) async {
-    if (_signedPetitions.contains(p.id)) return;
-    _signedPetitions.add(p.id);
-    final idx = _localPetitions.indexWhere((q) => q.id == p.id);
-    if (idx >= 0) {
-      _localPetitions[idx] = _localPetitions[idx].copyWith(
-        signatureCount: _localPetitions[idx].signatureCount + 1,
+    if (localIndex >= 0) {
+      _localPosts[localIndex] = _localPosts[localIndex].copyWith(
+        likes: _localPosts[localIndex].likes + 1,
       );
     }
-    if (isRemoteAvailable) {
-      try {
-        await _db!.collection('petitions').doc(p.id).update({
-          'signatureCount': FieldValue.increment(1),
-        });
-        await _db!
-            .collection('users')
-            .doc(_uid)
-            .collection('signedPetitions')
-            .doc(p.id)
-            .set({'signedAt': Timestamp.now()});
-      } catch (e) {
-        log('signPetition remote failed: $e', name: 'ClimaRepository');
-      }
+
+    final database = _database;
+
+    if (database == null) {
+      return;
+    }
+
+    try {
+      await database.collection('posts').doc(postId).update({
+        'likes': FieldValue.increment(1),
+      });
+    } catch (error, stackTrace) {
+      log(
+        'likePost failed: $error',
+        name: 'ClimaRepository',
+        stackTrace: stackTrace,
+      );
     }
   }
 }
