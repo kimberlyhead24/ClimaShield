@@ -11,7 +11,7 @@ import '../models/recipe_model.dart';
 import 'community_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'actions_screen.dart';
-import 'meal_plan_screen.dart';
+
 import 'diet_onboarding_gate.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -38,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _load();
-    ClimaRepository.instance.loadActions(),
+    ClimaRepository.instance.loadActions();
   }
 
   // CHANGE: now also loads co2eSavedByCategory

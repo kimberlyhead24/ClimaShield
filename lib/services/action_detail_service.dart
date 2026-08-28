@@ -15,49 +15,49 @@ class ActionDetailService {
     final action = Map<String, dynamic>.from(actionDoc.data()!);
 
     // 2. Only resolve if this action uses location data
-    if (action['uses_location_data'] != true) return action;
+    if (action['usesLocationData'] != true) return action;
 
     // 3. Get user's state code from their profile
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return action; // not logged in — return raw
 
     final userDoc = await _db.collection('users').doc(uid).get();
-    final stateCode = userDoc.data()?['state_code'] as String?;
+    final stateCode = userDoc.data()?['stateCode'] as String?;
     if (stateCode == null) return action; // no location set — return raw
 
     // 4. Load solar data for that state
-    final solarDoc = await _db.collection('solar_data').doc(stateCode).get();
+    final solarDoc = await _db.collection('solarData').doc(stateCode).get();
     if (!solarDoc.exists) return action;
     final solar = solarDoc.data()!;
 
     // 5. Build the replacement map
-    final double peakSunHours = (solar['peak_sun_hours'] as num).toDouble();
-    final double gridFactor = (solar['grid_emissions_factor'] as num)
+    final double peakSunHours = (solar['peakSunHours'] as num).toDouble();
+    final double gridFactor = (solar['gridEmissionsFactor'] as num)
         .toDouble();
-    final int annualKwh = (solar['annual_kwh'] as num).toInt();
-    final int co2ePerYear = (solar['co2e_reduction_per_year_kg'] as num)
+    final int annualKwh = (solar['annualKwh'] as num).toInt();
+    final int co2ePerYear = (solar['co2eReductionPerYearKg'] as num)
         .toInt();
     final String stateName = solar['state'] as String;
 
     final replacements = {
       '{{state}}': stateName,
-      '{{peak_sun_hours}}': peakSunHours.toStringAsFixed(1),
-      '{{annual_kwh}}': annualKwh.toString(),
-      '{{co2e_reduction_per_year_kg}}': co2ePerYear.toString(),
-      '{{grid_emissions_factor}}': gridFactor.toStringAsFixed(3),
-      '{{tilt_angle}}': _latitudeForState(stateCode).toStringAsFixed(0),
-      '{{trees_equivalent}}': (co2ePerYear / 22).round().toString(),
+      '{{peakSunHours}}': peakSunHours.toStringAsFixed(1),
+      '{{annualKwh}}': annualKwh.toString(),
+      '{{co2eReductionPerYearKg}}': co2ePerYear.toString(),
+      '{{gridEmissionsFactor}}': gridFactor.toStringAsFixed(3),
+      '{{tiltAngle}}': _latitudeForState(stateCode).toStringAsFixed(0),
+      '{{treesEquivalent}}': (co2ePerYear / 22).round().toString(),
       // Step 3: 200W panel daily output
-      '{{step3_daily_wh}}': (peakSunHours * 200).round().toString(),
+      '{{step3DailyWh}}': (peakSunHours * 200).round().toString(),
       // Step 4: 7kW system annual output and CO2e
-      '{{step4_annual_kwh}}': (peakSunHours * 7000 * 0.365).round().toString(),
-      '{{step4_co2e}}': ((peakSunHours * 7000 * 0.365) * gridFactor)
+      '{{step4AnnualKwh}}': (peakSunHours * 7000 * 0.365).round().toString(),
+      '{{step4Co2e}}': ((peakSunHours * 7000 * 0.365) * gridFactor)
           .round()
           .toString(),
       // Example calculations for step-by-step guides
-      '{{panels_needed_example}}': (30 / peakSunHours).toStringAsFixed(1),
-      '{{system_size_example}}': (30 / peakSunHours).toStringAsFixed(1),
-      '{{panel_count_example}}': ((30 / peakSunHours * 1000) / 400)
+      '{{panelsNeededExample}}': (30 / peakSunHours).toStringAsFixed(1),
+      '{{systemSizeExample}}': (30 / peakSunHours).toStringAsFixed(1),
+      '{{panelCountExample}}': ((30 / peakSunHours * 1000) / 400)
           .ceil()
           .toString(),
     };

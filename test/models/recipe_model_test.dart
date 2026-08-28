@@ -84,9 +84,9 @@ void main() {
         },
         'impactScore': {
         'comparisonBaseline': 'Beef pasta',
-        'co2eReductionPerServingkg': 1.4,
-        'waterSavedPerServinGallons': 120,
-        'wasteDivertedPerServingkg': 0.2,
+        'co2eReductionPerServingKg': 1.4,
+        'waterSavedPerServingGallons': 120,
+        'wasteDivertedPerServingKg': 0.2,
         },
       }, id: 'recipe-1');
 
@@ -112,11 +112,11 @@ void main() {
           'carbsGrams': 54,
           'fatGrams': 15,
         },
-        'impact_score': {
-          'co2e_reduction_per_serving_kg': 1.4,
-          'water_saved_per_serving_gallons': 120,
-          'waste_diverted_per_serving_kg': 0.2,
-          'comparison_baseline': 'Beef pasta',
+        'impactScore': {
+          'co2eReductionPerServingKg': 1.4,
+          'waterSavedPerServingGallons': 120,
+          'wasteDivertedPerServingKg': 0.2,
+          'comparisonBaseline': 'Beef pasta',
         },
       });
 

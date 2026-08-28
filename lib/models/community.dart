@@ -17,37 +17,45 @@ class CommunityPost {
     this.tags = const [],
   });
 
-  CommunityPost copyWith({int? likes}) => CommunityPost(
-    id: id,
-    authorName: authorName,
-    authorId: authorId,
-    body: body,
-    createdAt: createdAt,
-    likes: likes ?? this.likes,
-    tags: tags,
-  );
+  CommunityPost copyWith({
+    String? id,
+    int? likes,
+  }) { 
+    return CommunityPost(
+      id: id ?? this.id,
+      authorName: authorName,
+      authorId: authorId,
+      body: body,
+      createdAt: createdAt,
+      likes: likes ?? this.likes,
+      tags: tags,
+    );
+  }
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'authorName': authorName,
-    'authorId': authorId,
-    'body': body,
-    'createdAt': createdAt.toIso8601String(),
-    'likes': likes,
-    'tags': tags,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'authorName': authorName,
+      'authorId': authorId,
+      'body': body,
+      'createdAt': createdAt.toIso8601String(),
+      'likes': likes,
+      'tags': tags,
+    };
+  }
 
-  factory CommunityPost.fromMap(Map<String, dynamic> m) => CommunityPost(
-    id: m['id'] as String,
-    authorName: m['authorName'] as String? ?? 'Anonymous',
-    authorId: m['authorId'] as String?,
-    body: m['body'] as String? ?? '',
-    createdAt:
-        DateTime.tryParse(m['createdAt'] as String? ?? '') ?? DateTime.now(),
-    likes: (m['likes'] as num?)?.toInt() ?? 0,
-    tags: (m['tags'] as List?)?.cast<String>() ?? const [],
-  );
+  factory CommunityPost.fromMap(
+    Map<String, dynamic> map, {
+      required String id,
+  }) {
+    return CommunityPost(
+      id: id,
+      authorName: map['authorName'] as String? ?? 'Anonymous',
+      authorId: map['authorId'] as String?,
+      body: map['body'] as String? ?? '',
+      createdAt:
+        DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+      likes: (map['likes'] as num?)?.toInt() ?? 0,
+      tags: (map['tags'] as List?)?.cast<String>() ?? const [],
+    );
+  }
 }
-
-
-

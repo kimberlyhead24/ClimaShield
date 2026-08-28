@@ -191,6 +191,26 @@ void main() {
       );
     });
 
+    test('debugs recipe cost and impact values', () {
+      final selected = recipe(
+        id: 'debug',
+        title: 'Debug Recipe',
+        mealTypes: const ['dinner'],
+        costPerServing: 3,
+        co2eReductionPerServing: 1.5,
+        waterSavedPerServing: 200,
+      );
+
+      expect(selected.effectiveCostPerServing, 3);
+      expect(
+        selected.climateImpact.estimatedReductionKgPerServing,
+        1.5,
+      );
+      expect(
+        selected.climateImpact.waterSavedGallonsPerServing,
+        200,
+      );
+    });
     test('scales planned cost and climate totals for household size', () {
       final selected = recipe(
         id: 'dinner',

@@ -52,11 +52,14 @@ class RecipeInstruction {
   });
 
   factory RecipeInstruction.fromMap(Map<String, dynamic> map) {
-    final rawIndices = map['ingredient_indices'];
+    final rawIndices = map['ingredientIndices'];
 
     final indices = rawIndices is List
-        ? rawIndices.whereType<num>().map((index) => index.toInt()).toList()
-        : <int>[];
+        ? rawIndices
+          .whereType<num>()
+          .map((index) => index.toInt())
+          .toList(growable: false)
+        : const <int>[];
 
     final singleIndex = (map['ingredient_index'] as num?)?.toInt();
 
@@ -99,18 +102,18 @@ class RecipeNutrition {
 
     return RecipeNutrition(
       calories: (map['calories'] as num?)?.toDouble(),
-      proteinGrams: (map['protein_grams'] as num?)?.toDouble(),
-      carbsGrams: (map['carbs_grams'] as num?)?.toDouble(),
-      fatGrams: (map['fat_grams'] as num?)?.toDouble(),
+      proteinGrams: (map['proteinGrams'] as num?)?.toDouble(),
+      carbsGrams: (map['carbsGrams'] as num?)?.toDouble(),
+      fatGrams: (map['fatGrams'] as num?)?.toDouble(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'calories': calories,
-      'protein_grams': proteinGrams,
-      'carbs_grams': carbsGrams,
-      'fat_grams': fatGrams,
+      'proteinGrams': proteinGrams,
+      'carbsGrams': carbsGrams,
+      'fatGrams': fatGrams,
     };
   }
 }
@@ -143,30 +146,32 @@ class RecipeClimateImpact {
     this.wasteDivertedKgPerServing,
   });
 
-  factory RecipeClimateImpact.fromMap(Map<String, dynamic>? map) {
+  factory RecipeClimateImpact.fromMap(
+    Map<String, dynamic>? map,
+  ) {
     if (map == null) {
       return const RecipeClimateImpact();
     }
 
     return RecipeClimateImpact(
-      co2eKgPerServing: (map['co2e_kg_per_serving'] as num?)?.toDouble(),
+      co2eKgPerServing: (map['co2eKgPerServing'] as num?)?.toDouble(),
       estimatedReductionKgPerServing:
-          (map['co2e_reduction_per_serving_kg'] as num?)?.toDouble(),
-      comparisonBaseline: map['comparison_baseline'] as String?,
+          (map['co2eReductionPerServingKg'] as num?)?.toDouble(),
+      comparisonBaseline: map['comparisonBaseline'] as String?,
       waterSavedGallonsPerServing:
-          (map['water_saved_per_serving_gallons'] as num?)?.toDouble(),
-      wasteDivertedKgPerServing: (map['waste_diverted_per_serving_kg'] as num?)
+          (map['waterSavedPerServingGallons'] as num?)?.toDouble(),
+      wasteDivertedKgPerServing: (map['wasteDivertedPerServingKg'] as num?)
           ?.toDouble(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'co2e_kg_per_serving': co2eKgPerServing,
-      'co2e_reduction_per_serving_kg': estimatedReductionKgPerServing,
-      'comparison_baseline': comparisonBaseline,
-      'water_saved_per_serving_gallons': waterSavedGallonsPerServing,
-      'waste_diverted_per_serving_kg': wasteDivertedKgPerServing,
+      'co2eKgPerServing': co2eKgPerServing,
+      'co2eReductionPerServingKg': estimatedReductionKgPerServing,
+      'comparisonBaseline': comparisonBaseline,
+      'waterSavedPerServingGallons': waterSavedGallonsPerServing,
+      'wasteDivertedPerServingKg': wasteDivertedKgPerServing,
     };
   }
 }
@@ -302,7 +307,7 @@ class Recipe {
 
   factory Recipe.fromMap(Map<String, dynamic> map, {String id = ''}) {
     final rawIngredients = map['ingredients'];
-    final rawInstructions = map['step_by_step_guide'];
+    final rawInstructions = map['stepByStepGuide'];
 
     final ingredients = rawIngredients is List
         ? rawIngredients
@@ -326,28 +331,41 @@ class Recipe {
 
     return Recipe(
       id: id,
-      title: map['name'] as String? ?? map['title'] as String? ?? '',
+      title: map['name'] as String? ?? '',
       description: map['description'] as String? ?? '',
-      imageUrl: map['image_url'] as String? ?? '',
-      mealTypes: List<String>.from(map['meal_type'] as List? ?? const []),
-      categories: List<String>.from(map['category'] as List? ?? const []),
-      dietTypes: List<String>.from(map['diet_type'] as List? ?? const []),
-      allergens: List<String>.from(map['allergens'] as List? ?? const []),
+      imageUrl: map['imageUrl'] as String? ?? '',
+      mealTypes: List<String>.from(
+        map['mealType'] as List? ?? const [],
+      ),
+      categories: List<String>.from(
+        map['category'] as List? ?? const [],
+      ),
+      dietTypes: List<String>.from(
+        map['dietType'] as List? ?? const [],
+      ),
+      allergens: List<String>.from(
+        map['allergens'] as List? ?? const [],
+        ),
       difficulty: map['difficulty'] as String? ?? 'Easy',
-      prepTimeMinutes: (map['prep_time_minutes'] as num?)?.toInt() ?? 0,
-      totalTimeMinutes: (map['total_time_minutes'] as num?)?.toInt() ?? 0,
+      prepTimeMinutes: 
+        (map['prepTimeMinutes'] as num?)?.toInt() ?? 0,
+      totalTimeMinutes: 
+        (map['totalTimeMinutes'] as num?)?.toInt() ?? 0,
       servings: (map['servings'] as num?)?.toInt() ?? 1,
-      costEstimate: map['cost_estimate'] as String? ?? '',
-      estimatedCostUsdTotal: (map['estimatedCostUsdTotal'] as num?)?.toDouble(),
-      estimatedCostUsdPerServing: (map['estimatedCostUsdPerServing'] as num?)
-          ?.toDouble(),
-      isMvpRecipe: map['is_mvp_recipe'] as bool? ?? false,
-      videoTutorialUrl: map['video_tutorial_url'] as String?,
+      costEstimate: map['costEstimate'] as String? ?? '',
+      estimatedCostUsdTotal: 
+        (map['estimatedCostUsdTotal'] as num?)?.toDouble(),
+      estimatedCostUsdPerServing: 
+        (map['estimatedCostUsdPerServing'] as num?)?.toDouble(),
+      isMvpRecipe: map['isMvpRecipe'] as bool? ?? false,
+      videoTutorialUrl: map['videoTutorialUrl'] as String?,
       ingredientDetails: ingredients,
       instructionSteps: instructions,
-      nutrition: RecipeNutrition.fromMap(_mapOrNull(map['nutritional_info'])),
+      nutrition: RecipeNutrition.fromMap(
+        _mapOrNull(map['nutritionalInfo']),
+      ),
       climateImpact: RecipeClimateImpact.fromMap(
-        _mapOrNull(map['impact_score']),
+        _mapOrNull(map['impactScore']),
       ),
     );
   }
@@ -356,28 +374,28 @@ class Recipe {
     return {
       'name': title,
       'description': description,
-      'image_url': imageUrl,
-      'meal_type': mealTypes,
+      'imageUrl': imageUrl,
+      'mealType': mealTypes,
       'category': categories,
-      'diet_type': dietTypes,
+      'dietType': dietTypes,
       'allergens': allergens,
       'difficulty': difficulty,
-      'prep_time_minutes': prepTimeMinutes,
-      'total_time_minutes': totalTimeMinutes,
+      'prepTimeMinutes': prepTimeMinutes,
+      'totalTimeMinutes': totalTimeMinutes,
       'servings': servings,
-      'cost_estimate': costEstimate,
+      'costEstimate': costEstimate,
       'estimatedCostUsdTotal': estimatedCostUsdTotal,
       'estimatedCostUsdPerServing': estimatedCostUsdPerServing,
-      'is_mvp_recipe': isMvpRecipe,
-      'video_tutorial_url': videoTutorialUrl,
+      'isMvpRecipe': isMvpRecipe,
+      'videoTutorialUrl': videoTutorialUrl,
       'ingredients': ingredientDetails
           .map((ingredient) => ingredient.toMap())
           .toList(),
-      'step_by_step_guide': instructionSteps
+      'stepByStepGuide': instructionSteps
           .map((instruction) => instruction.toMap())
           .toList(),
-      'nutritional_info': nutrition.toMap(),
-      'impact_score': climateImpact.toMap(),
+      'nutritionalInfo': nutrition.toMap(),
+      'impactScore': climateImpact.toMap(),
     };
   }
 }

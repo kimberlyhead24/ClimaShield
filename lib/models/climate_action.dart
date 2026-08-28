@@ -68,7 +68,7 @@ extension ActionCategoryX on ActionCategory {
   }
 }
 
-/// Impact metrics stored as a nested map in Firestore under impact_score.
+/// Impact metrics stored as a nested map in Firestore under impactScore.
 class ActionImpactScore {
   final double co2eReductionPerYearKg;
   final double pollinatorHabitatSqFt;
@@ -86,19 +86,19 @@ class ActionImpactScore {
     if (m == null) return const ActionImpactScore();
     return ActionImpactScore(
       co2eReductionPerYearKg:
-          (m['co2e_reduction_per_year_kg'] as num?)?.toDouble() ?? 0,
+          (m['co2eReductionPerYearKg'] as num?)?.toDouble() ?? 0,
       pollinatorHabitatSqFt:
-          (m['pollinator_habitat_sq_ft'] as num?)?.toDouble() ?? 0,
-      wasteDivertedKg: (m['waste_diverted_kg'] as num?)?.toDouble() ?? 0,
-      waterSavedGallons: (m['water_saved_gallons'] as num?)?.toDouble() ?? 0,
+          (m['pollinatorHabitatSqFt'] as num?)?.toDouble() ?? 0,
+      wasteDivertedKg: (m['wasteDivertedKg'] as num?)?.toDouble() ?? 0,
+      waterSavedGallons: (m['waterSavedGallons'] as num?)?.toDouble() ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() => {
-    'co2e_reduction_per_year_kg': co2eReductionPerYearKg,
-    'pollinator_habitat_sq_ft': pollinatorHabitatSqFt,
-    'waste_diverted_kg': wasteDivertedKg,
-    'water_saved_gallons': waterSavedGallons,
+    'co2eReductionPerYearKg': co2eReductionPerYearKg,
+    'pollinatorHabitatSqFt': pollinatorHabitatSqFt,
+    'wasteDivertedKg': wasteDivertedKg,
+    'waterSavedGallons': waterSavedGallons,
   };
 
   // Total impact score 0–100 for sorting/filtering (weighted)
@@ -174,43 +174,47 @@ class ClimateAction {
 
   // ── Firestore deserialization ─────────────────────────────────────────────
 
-  factory ClimateAction.fromFirestore(Map<String, dynamic> m, String docId) {
-    final rawCategories = (m['category'] as List?)?.cast<String>() ?? [];
+  factory ClimateAction.fromFirestore(
+    Map<String, dynamic> map, 
+    String documentId,
+  ) {
+    final rawCategories = (map['category'] as List?)?.cast<String>() ?? [];
     final categories = rawCategories.isEmpty
         ? [ActionCategory.energy]
         : rawCategories.map(ActionCategoryX.fromString).toList();
 
     return ClimateAction(
-      id: docId,
-      name: m['name'] as String? ?? m['title'] as String? ?? '',
-      description: m['description'] as String? ?? m['summary'] as String? ?? '',
+      id: documentId,
+      name: map['name'] as String? ?? map['title'] as String? ?? '',
+      description: map['description'] as String? ?? map['summary'] as String? ?? '',
       categories: categories,
       environmentalImpactAreas:
-          (m['environmentalImpactAreas'] as List?)?.cast<String>() ?? [],
+          (map['environmentalImpactAreas'] as List?)?.cast<String>() ?? [],
       costEstimate:
-          m['costEstimate'] as String? ?? m['costEstimate'] as String? ?? '\$',
-      difficulty: m['difficulty'] as String? ?? 'Easy',
+          map['costEstimate'] as String? ?? map['costEstimate'] as String? ?? '\$',
+      difficulty: map['difficulty'] as String? ?? 'Easy',
       impactScore: ActionImpactScore.fromMap(
-        m['impactScore'] as Map<String, dynamic>?,
+        map['impactScore'] as Map<String, dynamic>?,
       ),
-      isMvpAction: m['isMvpAction'] as bool? ?? false,
-      keywords: (m['keywords'] as List?)?.cast<String>() ?? [],
-      scientificBasis: m['scientificBasis'] as String? ?? '',
-      sourceLink: m['sourceLink'] as String? ?? '',
-      stepByStepGuide: (m['stepByStepGuide'] as List?)?.cast<String>() ?? [],
-      videoTutorialUrl: m['videoTutorialUrl'] as String?,
-      imageUrl: m['imageUrl'] as String?,
-      requiresProfessional: m['requiresProfessional'] as bool? ?? false,
-      safetyNote: m['safetyNote'] as String?,
+      isMvpAction: map['isMvpAction'] as bool? ?? false,
+      keywords: (map['keywords'] as List?)?.cast<String>() ?? [],
+      scientificBasis: map['scientificBasis'] as String? ?? '',
+      sourceLink: map['sourceLink'] as String? ?? '',
+      stepByStepGuide: (map['stepByStepGuide'] as List?)?.cast<String>() ?? [],
+      videoTutorialUrl: map['videoTutorialUrl'] as String?,
+      imageUrl: map['imageUrl'] as String?,
+      requiresProfessional: map['requiresProfessional'] as bool? ?? false,
+      safetyNote: map['safetyNote'] as String?,
     );
   }
 
   // Legacy fromMap for any existing local/sample data
-  factory ClimateAction.fromMap(Map<String, dynamic> m) =>
-      ClimateAction.fromFirestore(
-        m,
-        m['id'] as String? ?? m['actionId'] as String? ?? '',
-      );
+  factory ClimateAction.fromMap(
+    Map<String, dynamic> map, {
+    required String id,
+  }) {
+    return ClimateAction.fromFirestore(map, id);
+  }
 
   Map<String, dynamic> toMap() => {
     'actionId': id,

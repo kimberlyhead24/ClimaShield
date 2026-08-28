@@ -16,43 +16,53 @@ class RankedRecipe {
 
 class MealPlanGenerator {
   static List<Recipe> filterEligibleRecipes({
-    required List<Recipe> recipes,
-    required DietProfile profile,
-  }) {
-    final dietaryRestrictions = _normalizedSet(profile.dietaryRestrictions);
-    final profileAllergens = _normalizedSet(profile.allergens);
-    final avoidedCuisines = _normalizedSet(profile.avoidedCuisines);
-    final dislikedIngredients = _normalizedSet(profile.dislikedIngredients);
+  required List<Recipe> recipes,
+  required DietProfile profile,
+}) {
+  final dietaryRestrictions =
+      _normalizedSet(profile.dietaryRestrictions);
+  final profileAllergens = _normalizedSet(profile.allergens);
+  final avoidedCuisines =
+      _normalizedSet(profile.avoidedCuisines);
+  final dislikedIngredients =
+      _normalizedSet(profile.dislikedIngredients);
 
-    return recipes.where((recipe) {
-      final recipeDietTypes = _normalizedSet(recipe.dietTypes);
-      final recipeAllergens = _normalizedSet(recipe.allergens);
-      final recipeCategories = _normalizedSet(recipe.categories);
+  final hasTimeLimit = profile.maxCookingTimeMinutes > 0;
 
-      final exceedsTimeLimit =
-          recipe.totalTimeMinutes > profile.maxCookingTimeMinutes;
+  return recipes.where((recipe) {
+    final recipeDietTypes = _normalizedSet(recipe.dietTypes);
+    final recipeAllergens = _normalizedSet(recipe.allergens);
+    final recipeCategories = _normalizedSet(recipe.categories);
 
-      final hasRestrictedDietMismatch =
-          dietaryRestrictions.isNotEmpty &&
-          !dietaryRestrictions.every(recipeDietTypes.contains);
+    final exceedsTimeLimit =
+        hasTimeLimit &&
+        recipe.effectiveTotalTimeMinutes >
+            profile.maxCookingTimeMinutes;
 
-      final containsAllergen = recipeAllergens.any(profileAllergens.contains);
+    final hasRestrictedDietMismatch =
+        dietaryRestrictions.isNotEmpty &&
+        !dietaryRestrictions.every(recipeDietTypes.contains);
 
-      final usesAvoidedCuisine =
-          recipeCategories.any(avoidedCuisines.contains);
+    final containsAllergen =
+        recipeAllergens.any(profileAllergens.contains);
 
-      final hasDislikedIngredient = recipe.ingredientDetails.any(
-        (ingredient) =>
-            dislikedIngredients.contains(_normalize(ingredient.name)),
-      );
+    final usesAvoidedCuisine =
+        recipeCategories.any(avoidedCuisines.contains);
 
-      return !exceedsTimeLimit &&
-          !hasRestrictedDietMismatch &&
-          !containsAllergen &&
-          !usesAvoidedCuisine &&
-          !hasDislikedIngredient;
-    }).toList();
-  }
+    final hasDislikedIngredient = recipe.ingredientDetails.any(
+      (ingredient) =>
+          dislikedIngredients.contains(
+            _normalize(ingredient.name),
+          ),
+    );
+
+    return !exceedsTimeLimit &&
+        !hasRestrictedDietMismatch &&
+        !containsAllergen &&
+        !usesAvoidedCuisine &&
+        !hasDislikedIngredient;
+  }).toList(growable: false);
+}
 
   static List<RankedRecipe> rankRecipes({
     required List<Recipe> recipes,
@@ -74,7 +84,11 @@ class MealPlanGenerator {
         }
       }
 
-      if (recipe.totalTimeMinutes <= profile.maxCookingTimeMinutes) {
+      final hasTimeLimit = profile.maxCookingTimeMinutes > 0;
+
+      if (!hasTimeLimit ||
+          recipe.effectiveTotalTimeMinutes <=
+            profile.maxCookingTimeMinutes) {
         score += 10;
         reasons.add('Fits your cooking-time preference');
       }
@@ -111,12 +125,25 @@ class MealPlanGenerator {
     required double rankingScore,
     required List<String> rankingReasons,
   }) {
+    final safeHouseholdSize = householdSize < 1 ? 1 : householdSize;
+
+    final costPerServing = recipe.effectiveCostPerServing ?? 0;
+    final savingsPerServing =
+      recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
+    final waterSavedPerServing = 
+      recipe.climateImpact.waterSavedGallonsPerServing ?? 0;
+
     return PlannedMeal(
       recipeId: recipe.id,
       recipeName: recipe.title,
       mealSlot: slot,
       plannedForDate: date,
-      servings: householdSize,
+      servings: safeHouseholdSize,
+      estimatedCostUsd: costPerServing * safeHouseholdSize,
+      estimatedCo2eReductionKg: savingsPerServing * safeHouseholdSize,
+      estimatedWaterSavedGallons: waterSavedPerServing * safeHouseholdSize,
+      rankingScore: rankingScore,
+      rankingReasons: List<String>.unmodifiable(rankingReasons),
     );
   }
 
@@ -180,12 +207,32 @@ class MealPlanGenerator {
         );
       }
     }
+    final estimatedWeeklyCostUsd = meals.fold<double>(
+      0,
+      (total, meal) => total + meal.estimatedCostUsd,
+    );
+
+    final estimatedWeeklyCo2eReductionKg = meals.fold<double>(
+      0,
+      (total, meal) => total + meal.estimatedCo2eReductionKg,
+    );
+
+    final estimatedWeeklyWaterSavedGallons = meals.fold<double>(
+      0,
+      (total, meal) => total + meal.estimatedWaterSavedGallons,
+    );
 
     return WeeklyMealPlan(
       id: _weekId(weekStart),
       weekStart: weekStart,
       pace: _paceFromProfile(profile.transitionPace),
       meals: meals,
+      householdSize: profile.householdSize,
+      weeklyBudgetUsd: profile.weeklyFoodBudgetUsd,
+      estimatedWeeklyCostUsd: estimatedWeeklyCostUsd,
+      estimatedWeeklyCo2eReductionKg: estimatedWeeklyCo2eReductionKg,
+      estimatedWeeklyWaterSavedGallons: estimatedWeeklyWaterSavedGallons,
+      generatorVersion: 1,
       generatedAt: DateTime.now(),
     );
   }
