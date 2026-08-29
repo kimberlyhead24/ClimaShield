@@ -14,55 +14,65 @@ class RankedRecipe {
   final List<String> reasons;
 }
 
+class MealPlanGenerationResult {
+  final WeeklyMealPlan plan;
+  final List<String> warnings;
+
+  const MealPlanGenerationResult({
+    required this.plan,
+    this.warnings = const [],
+  });
+
+  bool get hasWarnings => warnings.isNotEmpty;
+}
+
 class MealPlanGenerator {
   static List<Recipe> filterEligibleRecipes({
-  required List<Recipe> recipes,
-  required DietProfile profile,
-}) {
-  final dietaryRestrictions =
-      _normalizedSet(profile.dietaryRestrictions);
-  final profileAllergens = _normalizedSet(profile.allergens);
-  final avoidedCuisines =
-      _normalizedSet(profile.avoidedCuisines);
-  final dislikedIngredients =
-      _normalizedSet(profile.dislikedIngredients);
+    required List<Recipe> recipes,
+    required DietProfile profile,
+  }) {
+    final dietaryRestrictions = _normalizedSet(profile.dietaryRestrictions);
+    final profileAllergens = _normalizedSet(profile.allergens);
+    final avoidedCuisines = _normalizedSet(profile.avoidedCuisines);
+    final dislikedIngredients = _normalizedSet(profile.dislikedIngredients);
 
-  final hasTimeLimit = profile.maxCookingTimeMinutes > 0;
+    final hasTimeLimit = profile.maxCookingTimeMinutes > 0;
 
-  return recipes.where((recipe) {
-    final recipeDietTypes = _normalizedSet(recipe.dietTypes);
-    final recipeAllergens = _normalizedSet(recipe.allergens);
-    final recipeCategories = _normalizedSet(recipe.categories);
+    return recipes
+        .where((recipe) {
+          final recipeDietTypes = _normalizedSet(recipe.dietTypes);
+          final recipeAllergens = _normalizedSet(recipe.allergens);
+          final recipeCategories = _normalizedSet(recipe.categories);
 
-    final exceedsTimeLimit =
-        hasTimeLimit &&
-        recipe.effectiveTotalTimeMinutes >
-            profile.maxCookingTimeMinutes;
+          final exceedsTimeLimit =
+              hasTimeLimit &&
+              recipe.effectiveTotalTimeMinutes > profile.maxCookingTimeMinutes;
 
-    final hasRestrictedDietMismatch =
-        dietaryRestrictions.isNotEmpty &&
-        !dietaryRestrictions.every(recipeDietTypes.contains);
+          final hasRestrictedDietMismatch =
+              dietaryRestrictions.isNotEmpty &&
+              !dietaryRestrictions.every(recipeDietTypes.contains);
 
-    final containsAllergen =
-        recipeAllergens.any(profileAllergens.contains);
+          final containsAllergen = recipeAllergens.any(
+            profileAllergens.contains,
+          );
 
-    final usesAvoidedCuisine =
-        recipeCategories.any(avoidedCuisines.contains);
+          final usesAvoidedCuisine = recipeCategories.any(
+            avoidedCuisines.contains,
+          );
 
-    final hasDislikedIngredient = recipe.ingredientDetails.any(
-      (ingredient) =>
-          dislikedIngredients.contains(
-            _normalize(ingredient.name),
-          ),
-    );
+          final hasDislikedIngredient = recipe.ingredientDetails.any(
+            (ingredient) =>
+                dislikedIngredients.contains(_normalize(ingredient.name)),
+          );
 
-    return !exceedsTimeLimit &&
-        !hasRestrictedDietMismatch &&
-        !containsAllergen &&
-        !usesAvoidedCuisine &&
-        !hasDislikedIngredient;
-  }).toList(growable: false);
-}
+          return !exceedsTimeLimit &&
+              !hasRestrictedDietMismatch &&
+              !containsAllergen &&
+              !usesAvoidedCuisine &&
+              !hasDislikedIngredient;
+        })
+        .toList(growable: false);
+  }
 
   static List<RankedRecipe> rankRecipes({
     required List<Recipe> recipes,
@@ -87,8 +97,7 @@ class MealPlanGenerator {
       final hasTimeLimit = profile.maxCookingTimeMinutes > 0;
 
       if (!hasTimeLimit ||
-          recipe.effectiveTotalTimeMinutes <=
-            profile.maxCookingTimeMinutes) {
+          recipe.effectiveTotalTimeMinutes <= profile.maxCookingTimeMinutes) {
         score += 10;
         reasons.add('Fits your cooking-time preference');
       }
@@ -98,11 +107,7 @@ class MealPlanGenerator {
         reasons.add('Helps reduce your meal climate impact');
       }
 
-      return RankedRecipe(
-        recipe: recipe,
-        score: score,
-        reasons: reasons,
-      );
+      return RankedRecipe(recipe: recipe, score: score, reasons: reasons);
     }).toList();
 
     ranked.sort((a, b) {
@@ -129,9 +134,9 @@ class MealPlanGenerator {
 
     final costPerServing = recipe.effectiveCostPerServing ?? 0;
     final savingsPerServing =
-      recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
-    final waterSavedPerServing = 
-      recipe.climateImpact.waterSavedGallonsPerServing ?? 0;
+        recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
+    final waterSavedPerServing =
+        recipe.climateImpact.waterSavedGallonsPerServing ?? 0;
 
     return PlannedMeal(
       recipeId: recipe.id,
@@ -147,25 +152,19 @@ class MealPlanGenerator {
     );
   }
 
-  static WeeklyMealPlan generate({
+  static MealPlanGenerationResult generate({
     required List<Recipe> recipes,
     required DietProfile profile,
     required DateTime weekStart,
   }) {
-    final eligible = filterEligibleRecipes(
-      recipes: recipes,
-      profile: profile,
-    );
+    final eligible = filterEligibleRecipes(recipes: recipes, profile: profile);
 
-    final ranked = rankRecipes(
-      recipes: eligible,
-      profile: profile,
-    );
+    final ranked = rankRecipes(recipes: eligible, profile: profile);
 
     final meals = <PlannedMeal>[];
     final usedRecipeIds = <String>{};
     final recipeUseCount = <String, int>{};
-    
+    final warnings = <String>[];
 
     final slots = <MealSlot>[
       MealSlot.breakfast,
@@ -192,15 +191,19 @@ class MealPlanGenerator {
           }
         }
 
-          candidate ??= _bestRepeatCandidateForSlot(
-            ranked,
-            slotName,
-            recipeUseCount,
+        candidate ??= _bestRepeatCandidateForSlot(
+          ranked,
+          slotName,
+          recipeUseCount,
         );
 
-          if (candidate == null) {
-            continue;
-          }
+        if (candidate == null) {
+          warnings.add(
+            'No eligible ${slot.name} recipe was available for '
+            '${_dateOnly(date).toIso8601String().split('T').first}.',
+          );
+          continue;
+        }
 
         usedRecipeIds.add(candidate.recipe.id);
 
@@ -239,7 +242,7 @@ class MealPlanGenerator {
       (total, meal) => total + meal.estimatedWaterSavedGallons,
     );
 
-    return WeeklyMealPlan(
+    final plan = WeeklyMealPlan(
       id: _weekId(weekStart),
       weekStart: weekStart,
       pace: _paceFromProfile(profile.transitionPace),
@@ -251,6 +254,11 @@ class MealPlanGenerator {
       estimatedWeeklyWaterSavedGallons: estimatedWeeklyWaterSavedGallons,
       generatorVersion: 1,
       generatedAt: DateTime.now(),
+    );
+
+    return MealPlanGenerationResult(
+      plan: plan,
+      warnings: List<String>.unmodifiable(warnings),
     );
   }
 
@@ -270,34 +278,32 @@ class MealPlanGenerator {
   }
 
   static RankedRecipe? _bestRepeatCandidateForSlot(
-  List<RankedRecipe> ranked,
-  String slotName,
-  Map<String, int> recipeUseCount,
-) {
-  RankedRecipe? bestCandidate;
-  var lowestUseCount = 1 << 30;
+    List<RankedRecipe> ranked,
+    String slotName,
+    Map<String, int> recipeUseCount,
+  ) {
+    RankedRecipe? bestCandidate;
+    var lowestUseCount = 1 << 30;
 
-  for (final rankedRecipe in ranked) {
-    final recipe = rankedRecipe.recipe;
+    for (final rankedRecipe in ranked) {
+      final recipe = rankedRecipe.recipe;
 
-    final supportsSlot = _normalizedSet(
-      recipe.mealTypes,
-    ).contains(slotName);
+      final supportsSlot = _normalizedSet(recipe.mealTypes).contains(slotName);
 
-    if (!supportsSlot) {
-      continue;
+      if (!supportsSlot) {
+        continue;
+      }
+
+      final useCount = recipeUseCount[recipe.id] ?? 0;
+
+      if (useCount < lowestUseCount) {
+        bestCandidate = rankedRecipe;
+        lowestUseCount = useCount;
+      }
     }
 
-    final useCount = recipeUseCount[recipe.id] ?? 0;
-
-    if (useCount < lowestUseCount) {
-      bestCandidate = rankedRecipe;
-      lowestUseCount = useCount;
-    }
+    return bestCandidate;
   }
-
-  return bestCandidate;
-}
 
   static Set<String> _normalizedSet(Iterable<dynamic> values) {
     return values
@@ -309,5 +315,9 @@ class MealPlanGenerator {
 
   static String _normalize(String value) {
     return value.trim().toLowerCase();
+  }
+
+  static DateTime _dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 }

@@ -152,7 +152,8 @@ class WeeklyMealPlan {
     }
 
     return estimatedWeeklyCostUsd - budget;
-}
+  }
+
   List<PlannedMeal> mealsForDay(DateTime date) {
     final normalizedDate = _dateOnly(date);
 
@@ -187,7 +188,7 @@ class WeeklyMealPlan {
               )
               .toList(growable: false)
         : const <PlannedMeal>[];
-      
+
     return WeeklyMealPlan(
       id: id,
       weekStart:
