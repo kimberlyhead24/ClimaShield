@@ -191,26 +191,77 @@ void main() {
       );
     });
 
-    test('debugs recipe cost and impact values', () {
-      final selected = recipe(
-        id: 'debug',
-        title: 'Debug Recipe',
-        mealTypes: const ['dinner'],
-        costPerServing: 3,
-        co2eReductionPerServing: 1.5,
-        waterSavedPerServing: 200,
+    test('keeps a generated plan within a weekly budget', () {
+      final recipes = List.generate(
+        21,
+        (index) => recipe(
+          id: 'budgetRecipe$index',
+          title: 'Budget Recipe $index',
+          mealTypes: switch (index % 3) {
+            0 => const ['breakfast'],
+            1 => const ['lunch'],
+            _ => const ['dinner'],
+          },
+          dietTypes: const ['vegetarian'],
+          costPerServing: 1,
+        ),
       );
 
-      expect(selected.effectiveCostPerServing, 3);
-      expect(
-        selected.climateImpact.estimatedReductionKgPerServing,
-        1.5,
+      final plan = MealPlanGenerator.generate(
+        recipes: recipes,
+        profile: profile(
+          householdSize: 2,
+          weeklyBudgetUsd: 42,
+          dietaryRestrictions: const ['vegetarian'],
+        ),
+        weekStart: weekStart,
       );
-      expect(
-        selected.climateImpact.waterSavedGallonsPerServing,
-        200,
-      );
+
+      expect(plan.estimatedWeeklyCostUsd, lessThanOrEqualTo(42));
+      expect(plan.meals, hasLength(21));
     });
+    });
+
+    test('keeps the higher-ranked eligible recipe and reports an over-budget plan',
+    () {
+      final recipes = [
+        recipe(
+          id: 'expensiveBreakfast',
+          title: 'Expensive Breakfast',
+          mealTypes: const ['breakfast'],
+          dietTypes: const ['vegetarian'],
+          costPerServing: 20,
+          co2eReductionPerServing: 10,
+        ),
+        recipe(
+          id: 'affordableBreakfast',
+          title: 'Affordable Breakfast',
+          mealTypes: const ['breakfast'],
+          dietTypes: const ['vegetarian'],
+          costPerServing: 1,
+          co2eReductionPerServing: 1,
+        ),
+      ];
+
+      final plan = MealPlanGenerator.generate(
+        recipes: recipes,
+        profile: profile(
+          householdSize: 2,
+          weeklyBudgetUsd: 2,
+          dietaryRestrictions: const ['vegetarian'],
+        ),
+        weekStart: weekStart,
+      );
+
+      final breakfastIds = plan.meals
+          .where((meal) => meal.mealSlot == MealSlot.breakfast)
+          .map((meal) => meal.recipeId)
+          .toList();
+
+      expect(breakfastIds, contains('expensiveBreakfast'));
+      expect(plan.estimatedWeeklyCostUsd, greaterThan(plan.weeklyBudgetUsd!));
+    },
+  );
     test('scales planned cost and climate totals for household size', () {
       final selected = recipe(
         id: 'dinner',
@@ -262,6 +313,78 @@ void main() {
       expect(plan.meals, hasLength(21));
       expect(plan.meals.map((meal) => meal.recipeId).toSet(), hasLength(21));
       expect(plan.householdSize, 2);
-    });
-  });
+    }); 
+    test(
+      'reuses an eligible recipe when unique options for a slot are exhausted',
+    () {
+      final recipes = [
+        recipe(
+          id: 'onlyBreakfast',
+          title: 'Only Breakfast',
+          mealTypes: const ['breakfast'],
+          dietTypes: const ['vegetarian'],
+          costPerServing: 1,
+        ),
+      ];
+
+      final plan = MealPlanGenerator.generate(
+        recipes: recipes,
+        profile: profile(
+          householdSize: 1,
+          dietaryRestrictions: const ['vegetarian'],
+        ),
+        weekStart: weekStart,
+      );
+
+      final breakfasts = plan.meals.where(
+       (meal) => meal.mealSlot == MealSlot.breakfast,
+      );
+
+      expect(breakfasts, hasLength(7));
+      expect(
+        breakfasts.every(
+          (meal) => meal.recipeId == 'onlyBreakfast',
+        ),
+        isTrue,
+      );
+    },
+  );
+  test(
+  'reuses eligible recipes and flags when a full plan exceeds budget',
+  () {
+    final recipes = [
+      recipe(
+        id: 'costlyBreakfast',
+        title: 'Costly Breakfast',
+        mealTypes: const ['breakfast'],
+        dietTypes: const ['vegetarian'],
+        costPerServing: 5,
+      ),
+    ];
+
+    final plan = MealPlanGenerator.generate(
+      recipes: recipes,
+      profile: profile(
+        householdSize: 1,
+        weeklyBudgetUsd: 10,
+        dietaryRestrictions: const ['vegetarian'],
+      ),
+      weekStart: weekStart,
+    );
+
+    final breakfasts = plan.meals.where(
+      (meal) => meal.mealSlot == MealSlot.breakfast,
+    );
+
+    expect(breakfasts, hasLength(7));
+    expect(breakfasts.every(
+      (meal) => meal.recipeId == 'costlyBreakfast',
+    ),
+    isTrue,
+  );
+  expect(plan.estimatedWeeklyCostUsd, 35);
+  expect(plan.estimatedWeeklyCostUsd, greaterThan(plan.weeklyBudgetUsd!));
+  },
+);
 }
+

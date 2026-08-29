@@ -138,6 +138,21 @@ class WeeklyMealPlan {
 
   DateTime get weekEnd => weekStart.add(const Duration(days: 6));
 
+  bool get isOverBudget {
+    final budget = weeklyBudgetUsd;
+
+    return budget != null && estimatedWeeklyCostUsd > budget;
+  }
+
+  double get budgetOverageUsd {
+    final budget = weeklyBudgetUsd;
+
+    if (budget == null || estimatedWeeklyCostUsd <= budget) {
+      return 0;
+    }
+
+    return estimatedWeeklyCostUsd - budget;
+}
   List<PlannedMeal> mealsForDay(DateTime date) {
     final normalizedDate = _dateOnly(date);
 
@@ -172,7 +187,7 @@ class WeeklyMealPlan {
               )
               .toList(growable: false)
         : const <PlannedMeal>[];
-
+      
     return WeeklyMealPlan(
       id: id,
       weekStart:

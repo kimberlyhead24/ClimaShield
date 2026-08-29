@@ -164,6 +164,8 @@ class MealPlanGenerator {
 
     final meals = <PlannedMeal>[];
     final usedRecipeIds = <String>{};
+    final recipeUseCount = <String, int>{};
+    
 
     final slots = <MealSlot>[
       MealSlot.breakfast,
@@ -178,32 +180,47 @@ class MealPlanGenerator {
         final slotName = slot.name;
 
         RankedRecipe? candidate;
-        for (final rankedRecipe in ranked) {
-          final supportsSlot =
-              _normalizedSet(rankedRecipe.recipe.mealTypes).contains(slotName);
 
-          if (!usedRecipeIds.contains(rankedRecipe.recipe.id) &&
-              supportsSlot) {
+        for (final rankedRecipe in ranked) {
+          final supportsSlot = _normalizedSet(
+            rankedRecipe.recipe.mealTypes,
+          ).contains(slotName);
+
+          if (supportsSlot && !usedRecipeIds.contains(rankedRecipe.recipe.id)) {
             candidate = rankedRecipe;
             break;
           }
         }
 
-        if (candidate == null) {
-          continue;
-        }
+          candidate ??= _bestRepeatCandidateForSlot(
+            ranked,
+            slotName,
+            recipeUseCount,
+        );
+
+          if (candidate == null) {
+            continue;
+          }
 
         usedRecipeIds.add(candidate.recipe.id);
 
-        meals.add(
-          toPlannedMeal(
-            recipe: candidate.recipe,
-            slot: slot,
-            date: date,
-            householdSize: profile.householdSize,
-            rankingScore: candidate.score,
-            rankingReasons: candidate.reasons,
-          ),
+        final plannedMeal = toPlannedMeal(
+          recipe: candidate.recipe,
+          slot: slot,
+          date: date,
+          householdSize: profile.householdSize,
+          rankingScore: candidate.score,
+          rankingReasons: candidate.reasons,
+        );
+
+        meals.add(plannedMeal);
+
+        usedRecipeIds.add(candidate.recipe.id);
+
+        recipeUseCount.update(
+          candidate.recipe.id,
+          (count) => count + 1,
+          ifAbsent: () => 1,
         );
       }
     }
@@ -251,6 +268,36 @@ class MealPlanGenerator {
         '${normalized.month.toString().padLeft(2, '0')}-'
         '${normalized.day.toString().padLeft(2, '0')}';
   }
+
+  static RankedRecipe? _bestRepeatCandidateForSlot(
+  List<RankedRecipe> ranked,
+  String slotName,
+  Map<String, int> recipeUseCount,
+) {
+  RankedRecipe? bestCandidate;
+  var lowestUseCount = 1 << 30;
+
+  for (final rankedRecipe in ranked) {
+    final recipe = rankedRecipe.recipe;
+
+    final supportsSlot = _normalizedSet(
+      recipe.mealTypes,
+    ).contains(slotName);
+
+    if (!supportsSlot) {
+      continue;
+    }
+
+    final useCount = recipeUseCount[recipe.id] ?? 0;
+
+    if (useCount < lowestUseCount) {
+      bestCandidate = rankedRecipe;
+      lowestUseCount = useCount;
+    }
+  }
+
+  return bestCandidate;
+}
 
   static Set<String> _normalizedSet(Iterable<dynamic> values) {
     return values

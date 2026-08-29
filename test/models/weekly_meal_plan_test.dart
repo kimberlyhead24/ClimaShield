@@ -97,7 +97,35 @@ void main() {
     test('calculates the Sunday end date for a Monday-based week', () {
       expect(plan.weekEnd, DateTime(2026, 8, 23));
     });
+    test('reports no budget overage when a plan is within budget', () {
+  final plan = WeeklyMealPlan(
+    id: '2026-08-24',
+    weekStart: DateTime(2026, 8, 24),
+    pace: MealPlanPace.steady,
+    meals: const [],
+    weeklyBudgetUsd: 100,
+    estimatedWeeklyCostUsd: 85,
+    generatedAt: DateTime(2026, 8, 24),
+  );
 
+  expect(plan.isOverBudget, isFalse);
+  expect(plan.budgetOverageUsd, 0);
+});
+
+test('reports the amount when a plan exceeds budget', () {
+  final plan = WeeklyMealPlan(
+    id: '2026-08-24',
+    weekStart: DateTime(2026, 8, 24),
+    pace: MealPlanPace.steady,
+    meals: const [],
+    weeklyBudgetUsd: 100,
+    estimatedWeeklyCostUsd: 114.75,
+    generatedAt: DateTime(2026, 8, 24),
+  );
+
+  expect(plan.isOverBudget, isTrue);
+  expect(plan.budgetOverageUsd, greaterThan(0));
+});
     test('returns only meals scheduled for the requested day', () {
       final mondayMeals = plan.mealsForDay(monday);
 
