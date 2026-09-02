@@ -27,20 +27,16 @@ CarbonFootprint computeFootprint(CarbonCalculatorInputs i) {
       i.flightsLongHaulPerYear * CarbonFactors.kgCO2eLongHaulFlight;
   final transportKg = carKg + flightKg;
 
-  final household = i.householdSize <= 0 ? 1 : i.householdSize;
   final electricKg =
-      i.electricityKwhPerMonth *
-      12 *
-      CarbonFactors.kgCO2ePerKwhUsAvg /
-      household;
+      i.electricityKwhPerMonth * 12 * CarbonFactors.kgCO2ePerKwhUsAvg;
   final gasKg =
-      i.naturalGasThermsPerMonth *
-      12 *
-      CarbonFactors.kgCO2ePerThermNaturalGas /
-      household;
+      i.naturalGasThermsPerMonth * 12 * CarbonFactors.kgCO2ePerThermNaturalGas;
   final homeEnergyKg = electricKg + gasKg;
 
-  final dietKg = CarbonFactors.dietAnnualKg[i.dietType] ?? 2500;
+  final householdSize = i.householdSize < 1 ? 1 : i.householdSize;
+
+  final dietKg =
+      (CarbonFactors.dietAnnualKg[i.dietType] ?? 2500) * householdSize;
 
   final goodsKg = i.monthlyShoppingUsd * 12 * CarbonFactors.kgCO2ePerUsdGoods;
 

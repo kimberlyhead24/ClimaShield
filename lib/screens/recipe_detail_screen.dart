@@ -6,8 +6,13 @@ import '../utils/recipe_scaling.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
+  final DateTime? plannedForDate;
 
-  const RecipeDetailScreen({super.key, required this.recipe});
+  const RecipeDetailScreen({
+    super.key,
+    required this.recipe,
+    this.plannedForDate,
+  });
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
@@ -66,21 +71,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   String _renderInstruction(RecipeInstruction step) {
     var nextIngredientPosition = 0;
 
-    return step.instruction.replaceAllMapped(RegExp(r'\{ingredient\}'), (_) {
-      if (nextIngredientPosition >= step.ingredientIndices.length) {
-        return 'the ingredient';
-      }
+    return step.instruction.replaceAllMapped(
+      RegExp(r'\{ingredient(?:\.name)?\}'),
+      (_) {
+        if (nextIngredientPosition >= step.ingredientIndices.length) {
+          return 'the ingredient';
+        }
 
-      final ingredientIndex = step.ingredientIndices[nextIngredientPosition];
-      nextIngredientPosition += 1;
+        final ingredientIndex = step.ingredientIndices[nextIngredientPosition];
+        nextIngredientPosition += 1;
 
-      if (ingredientIndex < 0 ||
-          ingredientIndex >= recipe.ingredientDetails.length) {
-        return 'the ingredient';
-      }
+        if (ingredientIndex < 0 ||
+            ingredientIndex >= recipe.ingredientDetails.length) {
+          return 'the ingredient';
+        }
 
-      return recipe.ingredientDetails[ingredientIndex].name;
-    });
+        return recipe.ingredientDetails[ingredientIndex].name;
+      },
+    );
   }
 
   void _changePlannedYield(int nextValue) {
@@ -107,32 +115,62 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Future<void> _logMeal() async {
-    if (_loggingMeal || _mealLogged) return;
+    if (_loggingMeal || _mealLogged) {
+      return;
+    }
 
     setState(() {
       _loggingMeal = true;
     });
 
-    await ClimaRepository.instance.logRecipeMeal(
-      recipe,
-      servings: _servingsEaten,
-    );
+    try {
+      await ClimaRepository.instance.logRecipeMeal(
+        recipe,
+        servings: _servingsEaten,
+        plannedForDate: widget.plannedForDate,
+      );
 
-    if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-    setState(() {
-      _loggingMeal = false;
-      _mealLogged = true;
-    });
+      setState(() {
+        _mealLogged = true;
+      });
 
-    final savingsText = _savingsPerServing == null
-        ? 'Meal logged.'
-        : 'Meal logged — ${_loggedMealSavings.toStringAsFixed(1)} kg '
-              'CO₂e in estimated meal-swap savings.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Meal logged. Your personalized estimated diet impact '
+            'will appear on the dashboard.',
+          ),
+        ),
+      );
+    } on StateError catch (error) {
+      if (!mounted) {
+        return;
+      }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(savingsText)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message.toString())));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('We could not log this meal. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loggingMeal = false;
+        });
+      }
+    }
   }
 
   @override
@@ -146,199 +184,201 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(recipe.title)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _RecipeHero(
-              imageUrl: recipe.imageUrl,
-              hasUsableImage: _hasUsableImage,
-            ),
-            const SizedBox(height: 16),
-            if (metadata.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: metadata
-                    .map(
-                      (item) => Chip(
-                        label: Text(item),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                    .toList(),
-              ),
-            if (metadata.isNotEmpty) const SizedBox(height: 16),
-            Text(
-              recipe.description,
-              style: const TextStyle(
-                fontSize: 17,
-                fontStyle: FontStyle.italic,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            _YieldSelector(
-              label: 'Servings to make',
-              servings: _plannedYield,
-              onDecrease: _plannedYield > 1
-                  ? () => _changePlannedYield(_plannedYield - 1)
-                  : null,
-              onIncrease: () => _changePlannedYield(_plannedYield + 1),
-              decreaseTooltip: 'Decrease servings to make',
-              increaseTooltip: 'Increase servings to make',
-            ),
-
-            const SizedBox(height: 16),
-
-            if (_savingsPerServing != null) ...[
-              _ImpactCard(
-                comparisonBaseline: recipe.climateImpact.comparisonBaseline,
-                savingsPerServing: _savingsPerServing!,
-                plannedYield: _plannedYield,
-                plannedBatchSavings: _plannedBatchSavings,
-                servingsEaten: _servingsEaten,
-                loggedMealSavings: _loggedMealSavings,
+      body: SelectionArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _RecipeHero(
+                imageUrl: recipe.imageUrl,
+                hasUsableImage: _hasUsableImage,
               ),
               const SizedBox(height: 16),
-            ],
-
-            if (_hasNutrition) ...[
-              _NutritionCard(nutrition: recipe.nutrition),
-              const SizedBox(height: 24),
-            ],
-
-            const Text(
-              'Ingredients',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            ..._scaledIngredients.map(
-              (ingredient) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  '• ${RecipeQuantityFormatter.format(ingredient)}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Instructions',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            ...recipe.instructionSteps.asMap().entries.map((entry) {
-              final stepNumber = entry.key + 1;
-              final instruction = _renderInstruction(entry.value);
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      child: Text(
-                        '$stepNumber',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        instruction,
-                        style: const TextStyle(fontSize: 16, height: 1.4),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-
-            const SizedBox(height: 24),
-
-            if (recipe.allergens.isNotEmpty) ...[
-              const Text(
-                'Allergens',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: recipe.allergens
-                    .map(
-                      (allergen) => Chip(
-                        avatar: const Icon(
-                          Icons.warning_amber_rounded,
-                          size: 16,
+              if (metadata.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: metadata
+                      .map(
+                        (item) => Chip(
+                          label: Text(item),
+                          visualDensity: VisualDensity.compact,
                         ),
-                        label: Text(allergen),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            _YieldSelector(
-              label: 'Servings eaten',
-              servings: _servingsEaten,
-              onDecrease: _servingsEaten > 1
-                  ? () => _changeServingsEaten(_servingsEaten - 1)
-                  : null,
-              onIncrease: _servingsEaten < _plannedYield
-                  ? () => _changeServingsEaten(_servingsEaten + 1)
-                  : null,
-              decreaseTooltip: 'Decrease servings eaten',
-              increaseTooltip: 'Increase servings eaten',
-            ),
-
-            const SizedBox(height: 16),
-
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _loggingMeal || _mealLogged ? null : _logMeal,
-                icon: _loggingMeal
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(
-                        _mealLogged
-                            ? Icons.check_circle_outline
-                            : Icons.restaurant,
-                      ),
-                label: Text(
-                  _mealLogged
-                      ? 'Meal logged'
-                      : _loggingMeal
-                      ? 'Logging meal...'
-                      : 'Log meal',
+                      .toList(),
+                ),
+              if (metadata.isNotEmpty) const SizedBox(height: 16),
+              Text(
+                recipe.description,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontStyle: FontStyle.italic,
+                  height: 1.4,
                 ),
               ),
-            ),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 8),
+              _YieldSelector(
+                label: 'Servings to make',
+                servings: _plannedYield,
+                onDecrease: _plannedYield > 1
+                    ? () => _changePlannedYield(_plannedYield - 1)
+                    : null,
+                onIncrease: () => _changePlannedYield(_plannedYield + 1),
+                decreaseTooltip: 'Decrease servings to make',
+                increaseTooltip: 'Increase servings to make',
+              ),
 
-            const Text(
-              'Logging uses the number of servings eaten and compares the '
-              'recipe with its listed baseline meal.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.black54),
-            ),
+              const SizedBox(height: 16),
 
-            const SizedBox(height: 24),
-          ],
+              if (_savingsPerServing != null) ...[
+                _ImpactCard(
+                  comparisonBaseline: recipe.climateImpact.comparisonBaseline,
+                  savingsPerServing: _savingsPerServing!,
+                  plannedYield: _plannedYield,
+                  plannedBatchSavings: _plannedBatchSavings,
+                  servingsEaten: _servingsEaten,
+                  loggedMealSavings: _loggedMealSavings,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (_hasNutrition) ...[
+                _NutritionCard(nutrition: recipe.nutrition),
+                const SizedBox(height: 24),
+              ],
+
+              const Text(
+                'Ingredients',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              ..._scaledIngredients.map(
+                (ingredient) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• ${RecipeQuantityFormatter.format(ingredient)}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'Instructions',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              ...recipe.instructionSteps.asMap().entries.map((entry) {
+                final stepNumber = entry.key + 1;
+                final instruction = _renderInstruction(entry.value);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        child: Text(
+                          '$stepNumber',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          instruction,
+                          style: const TextStyle(fontSize: 16, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 24),
+
+              if (recipe.allergens.isNotEmpty) ...[
+                const Text(
+                  'Allergens',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: recipe.allergens
+                      .map(
+                        (allergen) => Chip(
+                          avatar: const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 16,
+                          ),
+                          label: Text(allergen),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              _YieldSelector(
+                label: 'Servings eaten',
+                servings: _servingsEaten,
+                onDecrease: _servingsEaten > 1
+                    ? () => _changeServingsEaten(_servingsEaten - 1)
+                    : null,
+                onIncrease: _servingsEaten < _plannedYield
+                    ? () => _changeServingsEaten(_servingsEaten + 1)
+                    : null,
+                decreaseTooltip: 'Decrease servings eaten',
+                increaseTooltip: 'Increase servings eaten',
+              ),
+
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _loggingMeal || _mealLogged ? null : _logMeal,
+                  icon: _loggingMeal
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _mealLogged
+                              ? Icons.check_circle_outline
+                              : Icons.restaurant,
+                        ),
+                  label: Text(
+                    _mealLogged
+                        ? 'Meal logged'
+                        : _loggingMeal
+                        ? 'Logging meal...'
+                        : 'Log meal',
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'Logging compares this recipe with your household\'s average '
+                'diet baseline and credits up to your household size.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -369,20 +409,26 @@ class _RecipeHero extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
-      child: Image.network(
-        imageUrl,
-        width: double.infinity,
-        height: 220,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) {
-          return Container(
-            height: 220,
-            color: Colors.green.shade100,
-            child: const Center(
-              child: Icon(Icons.restaurant_menu, size: 64, color: Colors.green),
-            ),
-          );
-        },
+      child: AspectRatio(
+        aspectRatio: 16 / 7,
+        child: Image.network(
+          imageUrl,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (_, _, _) {
+            return Container(
+              color: Colors.green.shade100,
+              child: const Center(
+                child: Icon(
+                  Icons.restaurant_menu,
+                  size: 64,
+                  color: Colors.green,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -477,7 +523,7 @@ class _ImpactCard extends StatelessWidget {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Estimated meal-swap savings',
+                  'Recipe climate information',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -533,12 +579,15 @@ class _NutritionCard extends StatelessWidget {
             children: [
               Icon(Icons.local_dining_outlined, color: Color(0xFF197602)),
               SizedBox(width: 8),
-              Text(
-                'Nutrition per serving',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1565C0),
+              Expanded(
+                child: Text(
+                  'Nutrition per serving',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1565C0),
+                  ),
                 ),
               ),
             ],

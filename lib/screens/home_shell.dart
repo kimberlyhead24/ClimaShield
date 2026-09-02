@@ -82,6 +82,77 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
+Future<void> confirmAndDeleteAccount(BuildContext context) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your ClimaShield sign-in account. '
+          'You will no longer be able to sign in with this account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete permanently'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (shouldDelete != true || !context.mounted) {
+    return;
+  }
+
+  try {
+    await FirebaseAuthService().deleteCurrentAccount();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (route) => false,
+    );
+  } on FirebaseAuthException catch (error) {
+    if (!context.mounted) {
+      return;
+    }
+
+    final message = error.code == 'requires-recent-login'
+        ? 'For security, please sign out and sign back in, then try deleting '
+              'your account again.'
+        : 'We could not delete your account. Please try again.';
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  } catch (_) {
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('We could not delete your account. Please try again.'),
+      ),
+    );
+  }
+}
+
 /// The side drawer that replaces MoreScreen.
 class _MoreDrawer extends StatelessWidget {
   const _MoreDrawer();
@@ -135,6 +206,22 @@ class _MoreDrawer extends StatelessWidget {
                             (route) => false,
                           );
                         },
+                      ),
+
+                    if (isLoggedIn)
+                      ListTile(
+                        leading: const Icon(
+                          Icons.delete_forever_outlined,
+                          color: Colors.red,
+                        ),
+                        title: const Text(
+                          'Delete account',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        subtitle: const Text(
+                          'Permanently remove this test account',
+                        ),
+                        onTap: () => confirmAndDeleteAccount(context),
                       ),
                   ],
                 );
@@ -238,25 +325,6 @@ class _LoggedInDrawerHeader extends StatelessWidget {
                       ),
                     ],
                   ],
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await FirebaseAuthService().signOut();
-                  if (!context.mounted) return;
-
-                  // Close drawer
-                  Navigator.of(context).pop();
-
-                  // Clear stack and go to WelcomeScreen
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                    (route) => false,
-                  );
-                },
-                child: const Text(
-                  'Sign out',
-                  style: TextStyle(color: Colors.red),
                 ),
               ),
             ],

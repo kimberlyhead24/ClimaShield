@@ -13,6 +13,9 @@ import '../models/footprint.dart';
 import '../models/recipe_model.dart';
 import '../models/weekly_meal_plan.dart';
 
+import '../services/meal_plan_generator.dart';
+import '../services/diet_baseline_savings.dart';
+
 class ClimaRepository {
   ClimaRepository._();
 
@@ -49,8 +52,7 @@ class ClimaRepository {
 
   bool get isAuthenticated => _userId != null;
 
-  bool get isRemoteAvailable =>
-      _database != null && _userId != null;
+  bool get isRemoteAvailable => _database != null && _userId != null;
 
   DocumentReference<Map<String, dynamic>>? get _userDocument {
     final database = _database;
@@ -76,12 +78,11 @@ class ClimaRepository {
           .orderBy('name')
           .get();
 
-      return snapshot.docs.map((document) {
-        return ClimateAction.fromMap(
-          document.data(),
-          id: document.id,
-        );
-      }).toList(growable: false);
+      return snapshot.docs
+          .map((document) {
+            return ClimateAction.fromMap(document.data(), id: document.id);
+          })
+          .toList(growable: false);
     } catch (error, stackTrace) {
       log(
         'loadActions failed: $error',
@@ -105,12 +106,11 @@ class ClimaRepository {
           .orderBy('completedAt', descending: true)
           .get();
 
-      return snapshot.docs.map((document) {
-        return CompletedAction.fromMap(
-          document.data(),
-          id: document.id,
-        );
-      }).toList(growable: false);
+      return snapshot.docs
+          .map((document) {
+            return CompletedAction.fromMap(document.data(), id: document.id);
+          })
+          .toList(growable: false);
     } catch (error, stackTrace) {
       log(
         'completedActions failed: $error',
@@ -130,8 +130,7 @@ class ClimaRepository {
     );
 
     _localCompletedActions.removeWhere(
-      (completedAction) =>
-          completedAction.actionId == action.id,
+      (completedAction) => completedAction.actionId == action.id,
     );
     _localCompletedActions.insert(0, entry);
 
@@ -142,15 +141,12 @@ class ClimaRepository {
     }
 
     try {
-      await userDocument
-          .collection('completedActions')
-          .doc(action.id)
-          .set({
-            'actionId': action.id,
-            'category': action.primaryCategory.name,
-            'annualCo2eReductionKg': action.co2eKgPerYear,
-            'completedAt': FieldValue.serverTimestamp(),
-          });
+      await userDocument.collection('completedActions').doc(action.id).set({
+        'actionId': action.id,
+        'category': action.primaryCategory.name,
+        'annualCo2eReductionKg': action.co2eKgPerYear,
+        'completedAt': FieldValue.serverTimestamp(),
+      });
     } catch (error, stackTrace) {
       log(
         'markActionComplete failed: $error',
@@ -166,11 +162,7 @@ class ClimaRepository {
 
     return entries
         .where((entry) => entry.category != 'diet')
-        .fold<double>(
-          0,
-          (total, entry) =>
-              total + entry.annualCo2eReductionKg,
-        );
+        .fold<double>(0, (total, entry) => total + entry.annualCo2eReductionKg);
   }
 
   Future<Map<String, double>> co2eSavedByCategory() async {
@@ -178,12 +170,9 @@ class ClimaRepository {
     final totals = <String, double>{};
 
     for (final entry in entries) {
-      final category =
-          entry.category.isEmpty ? 'other' : entry.category;
+      final category = entry.category.isEmpty ? 'other' : entry.category;
 
-      totals[category] =
-          (totals[category] ?? 0) +
-              entry.annualCo2eReductionKg;
+      totals[category] = (totals[category] ?? 0) + entry.annualCo2eReductionKg;
     }
 
     return totals;
@@ -206,9 +195,7 @@ class ClimaRepository {
         return _localInputs;
       }
 
-      return CarbonCalculatorInputs.fromMap(
-        document.data() ?? {},
-      );
+      return CarbonCalculatorInputs.fromMap(document.data() ?? {});
     } catch (error, stackTrace) {
       log(
         'loadInputs failed: $error',
@@ -236,9 +223,7 @@ class ClimaRepository {
         return _localFootprint;
       }
 
-      return CarbonFootprint.fromMap(
-        document.data() ?? {},
-      );
+      return CarbonFootprint.fromMap(document.data() ?? {});
     } catch (error, stackTrace) {
       log(
         'loadFootprint failed: $error',
@@ -266,10 +251,7 @@ class ClimaRepository {
     try {
       final batch = database.batch();
 
-      batch.set(
-        userDocument.collection('meta').doc('inputs'),
-        inputs.toMap(),
-      );
+      batch.set(userDocument.collection('meta').doc('inputs'), inputs.toMap());
       batch.set(
         userDocument.collection('meta').doc('footprint'),
         footprint.toMap(),
@@ -300,12 +282,8 @@ class ClimaRepository {
     try {
       final batch = database.batch();
 
-      batch.delete(
-        userDocument.collection('meta').doc('inputs'),
-      );
-      batch.delete(
-        userDocument.collection('meta').doc('footprint'),
-      );
+      batch.delete(userDocument.collection('meta').doc('inputs'));
+      batch.delete(userDocument.collection('meta').doc('footprint'));
 
       await batch.commit();
     } catch (error, stackTrace) {
@@ -336,18 +314,13 @@ class ClimaRepository {
     try {
       final batch = database.batch();
 
-      batch.set(
-        userDocument.collection('meta').doc('inputs'),
-        inputs.toMap(),
-      );
+      batch.set(userDocument.collection('meta').doc('inputs'), inputs.toMap());
       batch.set(
         userDocument.collection('meta').doc('footprint'),
         footprint.toMap(),
       );
       batch.set(
-        userDocument
-            .collection('carbonCalculations')
-            .doc(record.calculationId),
+        userDocument.collection('carbonCalculations').doc(record.calculationId),
         record.toMap(),
       );
 
@@ -362,9 +335,7 @@ class ClimaRepository {
     }
   }
 
-  Future<void> saveCarbonCalculation(
-    CarbonCalculationRecord record,
-  ) async {
+  Future<void> saveCarbonCalculation(CarbonCalculationRecord record) async {
     final userDocument = _userDocument;
 
     if (userDocument == null) {
@@ -386,8 +357,7 @@ class ClimaRepository {
     }
   }
 
-  Future<CarbonCalculationRecord?>
-      loadLatestCarbonCalculation() async {
+  Future<CarbonCalculationRecord?> loadLatestCarbonCalculation() async {
     final userDocument = _userDocument;
 
     if (userDocument == null) {
@@ -421,8 +391,7 @@ class ClimaRepository {
     }
   }
 
-  Future<List<CarbonCalculationRecord>>
-      loadCarbonCalculationHistory({
+  Future<List<CarbonCalculationRecord>> loadCarbonCalculationHistory({
     int limit = 20,
   }) async {
     final userDocument = _userDocument;
@@ -438,12 +407,14 @@ class ClimaRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs.map((document) {
-        return CarbonCalculationRecord.fromMap({
-          ...document.data(),
-          'calculationId': document.id,
-        });
-      }).toList(growable: false);
+      return snapshot.docs
+          .map((document) {
+            return CarbonCalculationRecord.fromMap({
+              ...document.data(),
+              'calculationId': document.id,
+            });
+          })
+          .toList(growable: false);
     } catch (error, stackTrace) {
       log(
         'loadCarbonCalculationHistory failed: $error',
@@ -471,9 +442,7 @@ class ClimaRepository {
         return _localDietProfile;
       }
 
-      final profile = DietProfile.fromMap(
-        document.data() ?? {},
-      );
+      final profile = DietProfile.fromMap(document.data() ?? {});
 
       _localDietProfile = profile;
       return profile;
@@ -487,9 +456,7 @@ class ClimaRepository {
     }
   }
 
-  Future<void> saveDietProfile(
-    DietProfile profile,
-  ) async {
+  Future<void> saveDietProfile(DietProfile profile) async {
     _localDietProfile = profile;
 
     final userDocument = _userDocument;
@@ -513,9 +480,7 @@ class ClimaRepository {
     }
   }
 
-  Future<List<DietLogEntry>> dietLog({
-    int? days,
-  }) async {
+  Future<List<DietLogEntry>> dietLog({int? days}) async {
     final cutoff = days == null
         ? null
         : DateTime.now().subtract(Duration(days: days));
@@ -524,10 +489,7 @@ class ClimaRepository {
 
     if (userDocument == null) {
       return _localDietLogs
-          .where(
-            (entry) =>
-                cutoff == null || entry.loggedAt.isAfter(cutoff),
-          )
+          .where((entry) => cutoff == null || entry.loggedAt.isAfter(cutoff))
           .toList(growable: false);
     }
 
@@ -538,14 +500,14 @@ class ClimaRepository {
           .limit(200)
           .get();
 
-      return snapshot.docs.map((document) {
-        return DietLogEntry.fromMap(
-          document.data(),
-          id: document.id,
-        );
-      }).where((entry) {
-        return cutoff == null || entry.loggedAt.isAfter(cutoff);
-      }).toList(growable: false);
+      return snapshot.docs
+          .map((document) {
+            return DietLogEntry.fromMap(document.data(), id: document.id);
+          })
+          .where((entry) {
+            return cutoff == null || entry.loggedAt.isAfter(cutoff);
+          })
+          .toList(growable: false);
     } catch (error, stackTrace) {
       log(
         'dietLog failed: $error',
@@ -562,17 +524,50 @@ class ClimaRepository {
     DateTime? plannedForDate,
   }) async {
     final safeServings = servings < 1 ? 1 : servings;
-    final savingsPerServing =
-        recipe.climateImpact.estimatedReductionKgPerServing ?? 0;
+
+    final profile = await loadDietProfile();
+    final footprint = await loadFootprint();
+
+    if (profile == null || footprint == null) {
+      throw StateError(
+        'Complete your diet quiz and carbon calculation before logging a meal.',
+      );
+    }
+
+    final baselineCo2eKgPerServing =
+        DietBaselineSavings.baselineCo2eKgPerServing(
+          annualDietCo2eKg: footprint.dietKg,
+          totalMealsEatenPerWeek: profile.totalMealsEatenPerWeek,
+          householdSize: profile.householdSize,
+        );
+
+    final recipeCo2eKgPerServing = recipe.climateImpact.co2eKgPerServing ?? 0;
+
+    final creditableServings = DietBaselineSavings.creditableServings(
+      servingsLogged: safeServings,
+      householdSize: profile.householdSize,
+    );
+
+    final estimatedSavingsKg = DietBaselineSavings.estimatedCo2eSavingsKg(
+      baselineCo2eKgPerServing: baselineCo2eKgPerServing,
+      recipeCo2eKgPerServing: recipeCo2eKgPerServing,
+      servingsLogged: safeServings,
+      householdSize: profile.householdSize,
+    );
+
+    final estimatedSavingsKgPerServing = creditableServings == 0
+        ? 0.0
+        : estimatedSavingsKg / creditableServings;
 
     final entry = DietLogEntry(
       recipeId: recipe.id,
       recipeName: recipe.title,
-      servings: safeServings,
-      estimatedSavingsKgPerServing: savingsPerServing,
-      estimatedSavingsKg: savingsPerServing * safeServings,
+      servings: creditableServings,
+      estimatedSavingsKgPerServing: estimatedSavingsKgPerServing,
+      estimatedSavingsKg: estimatedSavingsKg,
       comparisonBaseline:
-          recipe.climateImpact.comparisonBaseline,
+          'Your household’s average diet baseline of '
+          '${baselineCo2eKgPerServing.toStringAsFixed(2)} kg CO₂e per serving',
       plannedForDate: plannedForDate,
       loggedAt: DateTime.now(),
     );
@@ -597,9 +592,7 @@ class ClimaRepository {
     }
   }
 
-  Future<double> totalDietSavingsKg({
-    int? days,
-  }) async {
+  Future<double> totalDietSavingsKg({int? days}) async {
     final entries = await dietLog(days: days);
 
     return entries.fold<double>(
@@ -609,11 +602,7 @@ class ClimaRepository {
   }
 
   DateTime mondayFor(DateTime date) {
-    final normalized = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    final normalized = DateTime(date.year, date.month, date.day);
 
     return normalized.subtract(
       Duration(days: normalized.weekday - DateTime.monday),
@@ -628,9 +617,7 @@ class ClimaRepository {
     return '$year-$month-$day';
   }
 
-  Future<WeeklyMealPlan?> loadWeeklyMealPlan({
-    DateTime? date,
-  }) async {
+  Future<WeeklyMealPlan?> loadWeeklyMealPlan({DateTime? date}) async {
     final weekStart = mondayFor(date ?? DateTime.now());
     final planId = weekPlanId(weekStart);
 
@@ -667,9 +654,7 @@ class ClimaRepository {
     }
   }
 
-  Future<bool> saveWeeklyMealPlan(
-    WeeklyMealPlan plan,
-  ) async {
+  Future<bool> saveWeeklyMealPlan(WeeklyMealPlan plan) async {
     _localMealPlans[plan.id] = plan;
 
     final userDocument = _userDocument;
@@ -679,10 +664,7 @@ class ClimaRepository {
     }
 
     try {
-      await userDocument
-          .collection('mealPlans')
-          .doc(plan.id)
-          .set(plan.toMap());
+      await userDocument.collection('mealPlans').doc(plan.id).set(plan.toMap());
 
       return true;
     } catch (error, stackTrace) {
@@ -693,6 +675,35 @@ class ClimaRepository {
       );
       return false;
     }
+  }
+
+  Future<MealPlanGenerationResult> generateWeeklyMealPlan({
+    required List<Recipe> recipes,
+    required DateTime date,
+  }) async {
+    final profile = await loadDietProfile();
+
+    if (profile == null) {
+      throw StateError('Complete the diet quiz before generating a meal plan.');
+    }
+
+    final weekStart = mondayFor(date);
+
+    final result = MealPlanGenerator.generate(
+      recipes: recipes,
+      profile: profile,
+      weekStart: weekStart,
+    );
+
+    final saved = await saveWeeklyMealPlan(result.plan);
+
+    if (!saved) {
+      throw StateError(
+        'Your meal plan was generated but could not be saved. Please try again.',
+      );
+    }
+
+    return result;
   }
 
   Future<List<CommunityPost>> communityPosts() async {
@@ -709,12 +720,11 @@ class ClimaRepository {
           .limit(100)
           .get();
 
-      return snapshot.docs.map((document) {
-        return CommunityPost.fromMap(
-          document.data(),
-          id: document.id,
-        );
-      }).toList(growable: false);
+      return snapshot.docs
+          .map((document) {
+            return CommunityPost.fromMap(document.data(), id: document.id);
+          })
+          .toList(growable: false);
     } catch (error, stackTrace) {
       log(
         'communityPosts failed: $error',
@@ -764,9 +774,7 @@ class ClimaRepository {
   }
 
   Future<void> likePost(String postId) async {
-    final localIndex = _localPosts.indexWhere(
-      (post) => post.id == postId,
-    );
+    final localIndex = _localPosts.indexWhere((post) => post.id == postId);
 
     if (localIndex >= 0) {
       _localPosts[localIndex] = _localPosts[localIndex].copyWith(

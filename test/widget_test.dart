@@ -31,7 +31,7 @@ void main() {
       );
     });
 
-    test('household size divides home energy', () {
+    test('carbon math keeps household home energy as a household total', () {
       const solo = CarbonCalculatorInputs(
         electricityKwhPerMonth: 800,
         householdSize: 1,
@@ -42,7 +42,7 @@ void main() {
       );
       expect(
         computeFootprint(family).homeEnergyKg,
-        closeTo(computeFootprint(solo).homeEnergyKg / 4, 0.1),
+        closeTo(computeFootprint(solo).homeEnergyKg, 0.1),
       );
     });
   });
