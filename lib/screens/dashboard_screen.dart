@@ -269,9 +269,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ── Recipe ideas ──────────────────────────────────────────
+                  // ── Today's Meal ──────────────────────────────────────────
                   _SectionHeader(
-                    title: 'Recipe ideas',
+                    title: 'Today\'s meal plan',
                     actionLabel: 'See all',
                     onActionTap: () => _open(const DietOnboardingGate()),
                   ),

@@ -1,8 +1,9 @@
 import 'dart:developer';
 import 'package:clima_shield/firebase_auth_service.dart';
-import 'package:clima_shield/screens/home_shell.dart';
+
 import 'package:clima_shield/screens/login_screen.dart';
 import 'package:flutter/material.dart';
+import 'carbon_onboarding_gate.dart';
 
 class BusinessSignUpScreen extends StatefulWidget {
   const BusinessSignUpScreen({super.key});
@@ -50,7 +51,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
+        MaterialPageRoute(builder: (_) => const CarbonOnboardingGate()),
         (_) => false,
       );
     } else {
@@ -145,7 +146,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                         return;
                       }
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const HomeShell()),
+                        MaterialPageRoute(builder: (_) => const CarbonOnboardingGate()),
                         (_) => false,
                       );
                     },

@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../firebase_auth_service.dart';
 import '../utils/auth_error_message.dart';
-import 'home_shell.dart';
+
 import 'login_screen.dart';
+import 'carbon_onboarding_gate.dart';
 
 class PersonalSignUpScreen extends StatefulWidget {
   const PersonalSignUpScreen({super.key});
@@ -64,7 +65,7 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
       log('Sign up successful: ${user.uid}', name: 'PersonalSignUpScreen');
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
+        MaterialPageRoute(builder: (_) => const CarbonOnboardingGate()),
         (_) => false,
       );
     } on FirebaseAuthException catch (error) {
@@ -246,7 +247,7 @@ class _PersonalSignUpScreenState extends State<PersonalSignUpScreen> {
 
                                 Navigator.of(context).pushAndRemoveUntil(
                                   MaterialPageRoute(
-                                    builder: (_) => const HomeShell(),
+                                    builder: (_) => const CarbonOnboardingGate(),
                                   ),
                                   (_) => false,
                                 );

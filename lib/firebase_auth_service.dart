@@ -138,4 +138,36 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+
+  /// Deletes the currently signed-in Firebase Authentication account.
+  ///
+  /// Firebase may require the user to sign in again before allowing this.
+  /// The caller should show a friendly message for
+  /// FirebaseAuthException(code: 'requires-recent-login').
+  Future<void> deleteCurrentAccount() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No signed-in user was found.');
+    }
+
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (error, stackTrace) {
+      log(
+        '[FirebaseAuthService] deleteCurrentAccount Firebase error: '
+        '${error.code}',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    } catch (error, stackTrace) {
+      log(
+        '[FirebaseAuthService] deleteCurrentAccount unexpected error: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 }
